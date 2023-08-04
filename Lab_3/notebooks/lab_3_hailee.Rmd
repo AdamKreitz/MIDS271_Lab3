@@ -7,6 +7,7 @@ output:
 
 ```{r load packages, echo=FALSE, message=FALSE}
 library(tidyverse)
+library(plm)
 ```
 
 
@@ -46,17 +47,19 @@ data$speed_limit[data$sl55 >= 0.5] <- 55
 data$speed_limit[data$sl65 >= 0.5] <- 65
 data$speed_limit[data$sl70 >= 0.5] <- 70
 data$speed_limit[data$sl75 >= 0.5] <- 75
-data$speed_limit[data$slnone >= 0.5] <- NA  
+data$speed_limit[data$slnone >= 0.5] <- NA  # DEL make this arbitrarily high?
 
 # Drop the unnecessary speed limit columns
 data <- subset(data, select = -c(sl55, sl65, sl70, sl75, slnone))
 
 # Create a year_of_observation variable
-# DEL instead of creating new variable, can just rename year variable
-data$year_of_observation <- data$year
+data$year_of_observation <- factor(data$year)
 
 # Drop the unnecessary year columns
 data <- subset(data, select = -grep("^d\\d{2}$", names(data)))
+
+# Factor state
+data$state <- factor(data$state)
 
 # Reencode one-hot variables
 data$bac <- 0
@@ -81,7 +84,7 @@ data <- subset(data, select = -c(bac08, bac10, zerotol, minage, perse))
 
 # Rename variables
 data <- data %>%
-  rename(total_fatalities_rate = totfatrte,
+  rename(total_fatality_rate = totfatrte,
          nighttime_fatality_rate  = nghtfatrte,
          weekend_fatality_rate = wkndfatrte,
          total_fatalities = totfat,
@@ -100,6 +103,8 @@ data <- data %>%
 As with every EDA this semester, the goal of this EDA is not to document your own process of discovery -- save that for an exploration notebook -- but instead it is to bring a reader that is new to the data to a full understanding of the important features of your data as quickly as possible. In order to do this, your EDA should include a detailed, orderly narrative description of what you want your reader to know. Do not include any output -- tables, plots, or statistics -- that you do not intend to write about.
 
 ```{r}
+# DELETE this chunk
+
 # Missing 2, 9, 12 -- 48 states
 table(data$state)
 ```
@@ -121,10 +126,10 @@ Estimate a linear regression model of *totfatrte* on a set of dummy variables fo
 
 # Create filtered data for years of interest
 data_81_thru_04 <- data %>%
-  filter(year_of_observation >= 1981 & year_of_observation <= 2004)
+  filter(year >= 1981 & year <= 2004)
 
 # Fit linear model
-lm_model <- lm(total_fatalities ~ factor(year_of_observation), data = data_81_thru_04)
+lm_model <- lm(total_fatality_rate ~ year_of_observation, data = data_81_thru_04)
 
 summary(lm_model)
 ```
@@ -154,11 +159,10 @@ If it is appropriate, include transformations of these variables. Please careful
 # DEL do more EDA to confirm if any variables need to be transformed
 
 # Fit expanded linear model
-exp_lm_model <- lm(total_fatalities ~ factor(year_of_observation) + bac + perSe + sbprim + sbsecon + 
+exp_lm_model <- lm(total_fatality_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
                      sl70plus + gdl + perc14_24 + unem + vehicmilespc, data = data_81_thru_04)
 
 summary(exp_lm_model)
-
 
 # DEL confirmed there is nothing other than 0/1 indicators for sbprim and sbsecond
 # table(data$sbprim)
@@ -178,6 +182,24 @@ Which set of estimates do you think is more reliable? Why do you think this?
 - What assumptions are needed in each of these models?  
 - Are these assumptions reasonable in the current context?
 
+```{r fixed effects model}
+# Convert data to a plm dataframe
+# DEL test if get same result using plm.data()
+data_81_thru_04_plm <- pdata.frame(data_81_thru_04, index = c("state", "year_of_observation"))
+
+# Fit fixed effects model
+fixed_model <- plm(total_fatality_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
+                      sl70plus + gdl + perc14_24 + unem + vehicmilespc, 
+                    data = data_81_thru_04_plm,
+                    model = "within", 
+                    effect = "individual")
+
+summary(fixed_model)
+
+# ?pdata.frame
+```
+
+
 # (10 points) Consider a Random Effects Model 
 
 Instead of estimating a fixed effects model, should you have estimated a random effects model?
@@ -185,6 +207,24 @@ Instead of estimating a fixed effects model, should you have estimated a random 
 - Please state the assumptions of a random effects model, and evaluate whether these assumptions are met in the data. 
 - If the assumptions are, in fact, met in the data, then estimate a random effects model and interpret the coefficients of this model. Comment on how, if at all, the estimates from this model have changed compared to the fixed effects model. 
 - If the assumptions are **not** met, then do not estimate the data. But, also comment on what the consequences would be if you were to *inappropriately* estimate a random effects model. Would your coefficient estimates be biased or not? Would your standard error estimates be biased or not? Or, would there be some other problem that might arise?
+
+
+```{r random effects model}
+# DEL don't print out these results in the final report because don't actually need to estimate
+
+# Fit random effects model
+random_model <- plm(total_fatality_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
+                      sl70plus + gdl + perc14_24 + unem + vehicmilespc, 
+                    data = data_81_thru_04_plm,
+                    model = "random")
+
+summary(random_model)
+```
+
+```{r hausman test}
+# Test for random effects
+phtest(fixed_model, random_model)
+```
 
 # (10 points) Model Forecasts 
 

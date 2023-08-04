@@ -8,6 +8,8 @@ output:
 ```{r load packages, echo=FALSE, message=FALSE}
 library(tidyverse)
 library(plm)
+library(readr)
+library(lubridate)
 ```
 
 
@@ -238,6 +240,49 @@ Now, use these changes in driving to make forecasts from your models.
 
 - Suppose that the number of miles driven per capita, increased by as much as the COVID boom. Using the FE estimates, what would the consequences be on the number of traffic fatalities? Please interpret the estimate.
 - Suppose that the number of miles driven per capita, decreased by as much as the COVID bust. Using the FE estimates, what would the consequences be on the number of traffic fatalities? Please interpret the estimate.
+
+```{r read monthly miles driven data}
+monthly_miles <- read_csv("~/271/MIDS271_Lab3/Lab_3/data/monthly_miles_driven.csv")
+
+# Show first few rows
+head(monthly_miles)
+```
+
+
+```{r pandemic comparison}
+# Reformat data for comparisons
+monthly_miles$date <- lubridate::mdy(monthly_miles$date)
+monthly_miles$year <- lubridate::year(monthly_miles$date)
+monthly_miles$month <- lubridate::month(monthly_miles$date)
+
+monthly_miles_2018 <- monthly_miles %>%
+  filter(date >= "2018-01-01" & date <= "2018-12-31") %>%
+  select(date, year, month, millions_of_miles_nonpand = millions_of_miles)
+
+monthly_miles_pand <- monthly_miles %>%
+  filter(date >= "2020-03-01") %>%
+  select(date, year, month, millions_of_miles_pand = millions_of_miles)
+
+comparison_data <- monthly_miles_pand %>%
+  left_join(monthly_miles_2018, by = "month") %>%
+  select(date = date.x, year = year.x, month, millions_of_miles_pand, millions_of_miles_nonpand)
+
+comparison_data$perc_change <- (comparison_data$millions_of_miles_pand - comparison_data$millions_of_miles_nonpand) / comparison_data$millions_of_miles_nonpand * 100
+
+
+# What month demonstrated the largest decrease in driving? How much, in percentage terms, lower was this driving? 
+print(comparison_data$date[which.min(comparison_data$perc_change)])
+print(min(comparison_data$perc_change))
+
+
+#What month demonstrated the largest increase in driving? How much, in percentage terms, higher was this driving?
+print(comparison_data$date[which.max(comparison_data$perc_change)])
+print(max(comparison_data$perc_change))
+```
+
+
+
+
 
 # (5 points) Evaluate Error 
 

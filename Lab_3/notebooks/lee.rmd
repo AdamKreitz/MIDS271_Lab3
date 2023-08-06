@@ -7,6 +7,11 @@ output:
 
 ```{r load packages, echo=FALSE, message=FALSE}
 library(tidyverse)
+library(corrplot)
+library(lme4)
+library(plm)
+library(knitr)
+library(stargazer)
 ```
 
 
@@ -23,9 +28,11 @@ Specifically, this data set contains data for the 48 continental U.S. states fro
 ```{r load data, echo = TRUE}
 load(file = "/home/rstudio/workspace/mnt/271/labs/MIDS271_Lab3/Lab_3/data/driving.RData")
 
+# list of all states in alphabetical order
+states_list <- c("Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "District of Columbia", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming")
+
 ## please comment these calls in your work
 glimpse(data)
-#desc
 ```
 
 
@@ -39,32 +46,36 @@ glimpse(data)
     
 ```{r build and describe data}
 # Create a new column 'speed_limit' and initialize it with 0
-data$speed_limit <- 0
-
-# Assign the corresponding speed limit value to 'speed_limit' based on the true condition
-data$speed_limit[data$sl55 > 0.5] <- 55
-data$speed_limit[data$sl65 > 0.5] <- 65
-data$speed_limit[data$sl70 > 0.5] <- 70
-data$speed_limit[data$sl75 > 0.5] <- 75
-data$speed_limit[data$slnone > 0.5] <- NA  
-
-# Drop the unnecessary columns
-data <- subset(data, select = -c(sl55, sl65, sl70, sl75, slnone))
-
-data$year_of_observation <- data$year
-
-# Drop the unnecessary columns
-data <- subset(data, select = -grep("^d\\d{2}$", names(data)))
-
-data$bac <- 0
-
-data$bac[data$bac08>0.5] <- .08
-data$bac[data$bac10>0.5] <- .1
-
-# Drop the unnecessary columns
-data <- subset(data, select = -c(bac08, bac10))
-
-data <- data %>%
+data_df <- data %>%
+    mutate(
+        year_of_observation_int = as.integer(year),
+        year_of_observation = factor(year),
+        speed_limit = case_when(
+            sl55 != 0 ~ 55,
+            sl65 != 0 ~ 65,
+            sl70 != 0 ~ 70,
+            sl75 != 0 ~ 75,
+            slnone == 1 ~ NA,
+            TRUE ~ NA
+        ) %>% factor(),
+        blood_alcohol_limit = case_when(
+            bac08 != 0 ~ 0.08,
+            bac10 != 0 ~ 0.1,
+            TRUE ~ NA
+        ) %>% factor(),
+        seatbelt_law = case_when(
+            sbprim != 0 ~ "primary",
+            sbsecon != 0 ~ "secondary",
+            TRUE ~ "none"
+        ) %>% factor(),
+        state_str = states_list[as.numeric(state)],
+        state = factor(state),
+        per_se_law = factor(perse != 0),
+        speed_limit_70_up = factor(sl70plus != 0),
+        graduated_drivers_licenses = factor(gdl != 0),
+        unemployment_rate_percent = unem / 100,
+        population_14_to_24_percent = perc14_24 / 100
+    ) %>%
     rename(
         total_fatalities = totfat,
         total_night_fatalities = nghtfat,
@@ -76,18 +87,124 @@ data <- data %>%
         night_fatalities_rate = nghtfatrte,
         weekend_fatalities_rate = wkndfatrte,
         vehicle_miles = vehicmiles,
-        unemployment_rate_percent = unem,
-        population_14_to_24_percent = perc14_24
+        primary_seat_belt = sbprim,
+        secondary_seat_belt = sbsecon,
     )
+    # select(-grep("^sl\\d{2}$|^d\\d{2}$|^slnone$", names(data))) %>%
 
-data %>% glimpse()
+data_df %>% glimpse()
 ```
 
 2. (5 points) Provide a description of the basic structure of the dataset. What is this data? How, where, and when is it collected? Is the data generated through a survey or some other method? Is the data that is presented a sample from the population, or is it a *census* that represents the entire population? Minimally, this should include:
     - How is the our dependent variable of interest `total_fatalities_rate` defined? 
+
+
+
 3. (20 points) Conduct a very thorough EDA, which should include both graphical and tabular techniques, on the dataset, including both the dependent variable `total_fatalities_rate` and the potential explanatory variables. Minimally, this should include: 
     - How is the our dependent variable of interest `total_fatalities_rate` defined? 
     - What is the average of `total_fatalities_rate` in each of the years in the time period covered in this dataset? 
+
+```{r eda}
+# # density plot of 'total_fatalities_rate'
+# data_df %>%
+#     ggplot(aes(x = total_fatalities_rate)) +
+#     geom_density() +
+#     labs(
+#         title = "Density plot of total fatality rate",
+#         x = "Total fatality rate",
+#         y = "Density"
+#     )
+
+# # log transformation of 'total_fatalities_rate' and density plot
+# data_df %>%
+#     mutate(log_total_fatalities_rate = log(total_fatalities_rate)) %>%
+#     ggplot(aes(x = log_total_fatalities_rate)) +
+#     geom_density() +
+#     labs(
+#         title = "Density plot of log total fatality rate",
+#         x = "Log total fatality rate",
+#         y = "Density"
+#     )
+
+# Create a new dataframe to store the average of 'total_fatalities_rate' in each year
+avg_total_fatalities_rate <- data_df %>%
+    group_by(year_of_observation) %>%
+    summarise(avg_total_fatalities_rate = mean(total_fatalities_rate))
+
+# Plot the average of 'total_fatalities_rate' in each year
+avg_total_fatalities_rate %>%
+    ggplot(aes(x = year_of_observation, y = avg_total_fatalities_rate, group = 1)) +
+    geom_line() +
+    geom_point() +
+    labs(
+        title = "Average total fatality rate each year",
+        x = "Year",
+        y = "Average of total fatality rate"
+    )
+
+# correlation matrix
+# cor(
+#     x = data_df %>% select(total_fatalities_rate),
+#     y = data_df %>%
+#         select(
+#             total_fatalities_per_100_million_miles,
+#             night_fatalities_per_100_million_miles,
+#             weekend_fatalities_per_100_million_miles,
+#             night_fatalities_rate,
+#             weekend_fatalities_rate,
+#             vehicle_miles,
+#             unemployment_rate_percent,
+#             population_14_to_24_percent
+#         )
+# ) %>%
+# corrplot(type = "upper", method = "circle", tl.col = "black", tl.srt = 45)
+```
+
+```{r table of total_fatalities_rate}
+avg_total_fatalities_rate %>%
+    mutate(avg_total_fatalities_rate = round(avg_total_fatalities_rate, 2)) %>%
+    kable(
+        caption = "Average total fatality rate each year",
+        col.names = c("Year", "Average of total fatality rate")
+    )
+```
+
+```{r eda of potential explanatory variables}
+# boxplot of fatalities by speed limit
+data_df %>%
+    ggplot(aes(x = speed_limit, y = total_fatalities_rate)) +
+    geom_boxplot() +
+    labs(
+        title = "Boxplot of fatalities by speed limit",
+        x = "Speed limit",
+        y = "Total fatality rate"
+    )
+
+# histogram of fatalities by state
+data_df %>%
+    group_by(state, state_str) %>%
+    summarise(total_fatalities_rate = sum(total_fatalities_rate)) %>%
+    ggplot(aes(x = state_str, y = total_fatalities_rate)) +
+    geom_col() +
+    labs(
+        title = "Boxplot of fatalities by state",
+        x = "State",
+        y = "Total fatality rate"
+    ) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+# boxplot of fatalities by BAC
+data_df %>%
+    ggplot(aes(x = blood_alcohol_limit, y = total_fatalities_rate)) +
+    geom_boxplot() +
+    labs(
+        title = "Boxplot of fatalities by BAC",
+        x = "BAC",
+        y = "Total fatality rate"
+    )
+
+# scatterplotmatrix of fatalities by state
+```
 
 As with every EDA this semester, the goal of this EDA is not to document your own process of discovery -- save that for an exploration notebook -- but instead it is to bring a reader that is new to the data to a full understanding of the important features of your data as quickly as possible. In order to do this, your EDA should include a detailed, orderly narrative description of what you want your reader to know. Do not include any output -- tables, plots, or statistics -- that you do not intend to write about.
 
@@ -101,6 +218,14 @@ Estimate a linear regression model of *totfatrte* on a set of dummy variables fo
 - What, if any, are the limitation of this model. In answering this, please consider **at least**: 
     - Are the parameter estimates reliable, unbiased estimates of the truth? Or, are they biased due to the way that the data is structured?
     - Are the uncertainty estimate reliable, unbiased estimates of sampling based variability? Or, are they biased due to the way that the data is structured? 
+
+```{r}
+dummy_data <- data_df %>% filter(year_of_observation_int >= 1981 & year_of_observation_int <= 2004)
+dummy_data %>% nrow()
+dummy_lm <- lm(total_fatalities_rate ~ year_of_observation, dummy_data)
+
+dummy_lm %>% stargazer()
+```
 
 # (15 points) Expanded Model 
 
@@ -122,6 +247,14 @@ If it is appropriate, include transformations of these variables. Please careful
 - Do *per se laws* have a negative effect on the fatality rate? 
 - Does having a primary seat belt law? 
 
+```{r}
+expanded_model <- lm(
+    total_fatalities_rate ~ year_of_observation + blood_alcohol_limit + per_se_law + seatbelt_law + speed_limit_70_up + graduated_drivers_licenses + population_14_to_24_percent + unemployment_rate_percent + vehicle_miles,
+    data = data_df
+)
+expanded_model %>% stargazer()
+```
+
 # (15 points) State-Level Fixed Effects 
 
 Re-estimate the **Expanded Model** using fixed effects at the state level. 
@@ -135,6 +268,23 @@ Which set of estimates do you think is more reliable? Why do you think this?
 - What assumptions are needed in each of these models?  
 - Are these assumptions reasonable in the current context?
 
+```{r}
+state_fixed_effects_model <- plm(
+    total_fatalities_rate ~ year_of_observation + blood_alcohol_limit + per_se_law + seatbelt_law + speed_limit_70_up + graduated_drivers_licenses + population_14_to_24_percent + unemployment_rate_percent + vehicle_miles,
+    model = "within",
+    index = "state",
+    effect = "individual",
+    data = data_df
+)
+state_fixed_effects_model %>% stargazer()
+```
+
+For linear models have the following assumption:
+1. **Linearity**: the model is linear in parameters
+2. **i.i.d.** : The observations are independent across individuals but not necessarily across time. This is guaranteed by random sampling of individuals.
+3. **Indentifiability**: the regressors, including a constant, are not perfectly collinear, and all regressors (but the constant) have non-zero variance and not too many extreme values.
+4. $x_it$ is uncorrelated with idiosyncratic error term $u_{it}$ and individual-specific effect $\gamma_i$
+
 # (10 points) Consider a Random Effects Model 
 
 Instead of estimating a fixed effects model, should you have estimated a random effects model?
@@ -142,6 +292,24 @@ Instead of estimating a fixed effects model, should you have estimated a random 
 - Please state the assumptions of a random effects model, and evaluate whether these assumptions are met in the data. 
 - If the assumptions are, in fact, met in the data, then estimate a random effects model and interpret the coefficients of this model. Comment on how, if at all, the estimates from this model have changed compared to the fixed effects model. 
 - If the assumptions are **not** met, then do not estimate the data. But, also comment on what the consequences would be if you were to *inappropriately* estimate a random effects model. Would your coefficient estimates be biased or not? Would your standard error estimates be biased or not? Or, would there be some other problem that might arise?
+
+```{r}
+# blood_alcohol_limit is a constant, so it is dropped?
+# the code didnt like blood_alcohol_limit or year_of_observation.
+# year_of_observation had far more significants than blood_alcohol_limit so i kept it
+state_random_effects_model <- plm(
+    total_fatalities_rate ~ year_of_observation + per_se_law + seatbelt_law + speed_limit_70_up + graduated_drivers_licenses + population_14_to_24_percent + unemployment_rate_percent + vehicle_miles,
+    model = "random",
+    index = "state",
+    effect = "individual",
+    data = data_df
+)
+state_random_effects_model %>% stargazer()
+```
+
+```{r}
+phtest(state_fixed_effects_model, state_random_effects_model)
+```
 
 # (10 points) Model Forecasts 
 
@@ -155,6 +323,71 @@ Now, use these changes in driving to make forecasts from your models.
 
 - Suppose that the number of miles driven per capita, increased by as much as the COVID boom. Using the FE estimates, what would the consequences be on the number of traffic fatalities? Please interpret the estimate.
 - Suppose that the number of miles driven per capita, decreased by as much as the COVID bust. Using the FE estimates, what would the consequences be on the number of traffic fatalities? Please interpret the estimate.
+
+```{r}
+current_data <- read_csv("https://fred.stlouisfed.org/graph/fredgraph.csv?bgcolor=%23e1e9f0&chart_type=line&drp=0&fo=open%20sans&graph_bgcolor=%23ffffff&height=450&mode=fred&recession_bars=on&txtcolor=%23444444&ts=12&tts=12&width=1318&nt=0&thu=0&trc=0&show_legend=yes&show_axis_titles=yes&show_tooltip=yes&id=M12MTVUSM227NFWA&scale=left&cosd=1970-12-01&coed=2023-05-01&line_color=%234572a7&link_values=false&line_style=solid&mark_type=none&mw=3&lw=2&ost=-99999&oet=99999&mma=0&fml=a&fq=Monthly&fam=avg&fgst=lin&fgsnd=2020-02-01&line_index=1&transformation=lin&vintage_date=2023-08-03&revision_date=2023-08-03&nd=1970-12-01") %>%
+    rename(date = DATE, millions_of_miles = M12MTVUSM227NFWA) %>%
+    mutate(date = as.Date(date)) %>%
+    filter(date >= "2018-01-01")
+
+current_df <- current_data %>%
+    mutate(year = year(date),
+           month = month(date),
+           day = day(date))
+```
+
+```{r}
+current_years_df <- current_df %>%
+    group_by(year) %>%
+    summarise(miles_driven = sum(millions_of_miles))
+
+year2018_df <- current_years_df %>% filter(year == 2018)
+year2020_df <- current_years_df %>% filter(year == 2020)
+year2021_df <- current_years_df %>% filter(year == 2021)
+
+year2020_df$miles_driven - year2018_df$miles_driven
+
+year2021_df$miles_driven - year2018_df$miles_driven
+
+data.frame(
+    year = c("2020 - 2018", "2021 - 2018"),
+    `miles driven difference` = c(
+        year2020_df$miles_driven - year2018_df$miles_driven,
+        year2021_df$miles_driven - year2018_df$miles_driven
+    ),
+    `percent difference` = c(
+        (year2020_df$miles_driven - year2018_df$miles_driven) / year2018_df$miles_driven,
+        (year2021_df$miles_driven - year2018_df$miles_driven) / year2018_df$miles_driven
+    )
+) %>% kable()
+```
+
+```{r}
+# work in progress #
+
+# predict(state_fixed_effects_model, newdata = data.frame(
+#     year_of_observation = "2020",
+#     blood_alcohol_limit = "0.08",
+#     per_se_law = "TRUE",
+#     seatbelt_law = "none",
+#     speed_limit_70_up = "TRUE",
+#     graduated_drivers_licenses = "TRUE",
+#     population_14_to_24_percent = mean(data_df$population_14_to_24_percent),
+#     unemployment_rate_percent = mean(data_df$unemployment_rate_percent),
+#     vehicle_miles = (year2020_df$miles_driven - year2018_df$miles_driven) / year2018_df$miles_driven
+# ), type = "response")
+
+# predict(state_fixed_effects_model, newdata = data.frame(
+#     year_of_observation = 2021,
+#     per_se_law = 1,
+#     seatbelt_law = 1,
+#     speed_limit_70_up = 1,
+#     graduated_drivers_licenses = 1,
+#     population_14_to_24_percent = 1,
+#     unemployment_rate_percent = 1,
+#     vehicle_miles = 1
+# ), type = "response")
+```
 
 # (5 points) Evaluate Error 
 

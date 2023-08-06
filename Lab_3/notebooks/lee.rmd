@@ -89,6 +89,7 @@ data_df <- data %>%
         vehicle_miles = vehicmiles,
         primary_seat_belt = sbprim,
         secondary_seat_belt = sbsecon,
+        vehicle_miles_per_capita = vehicmilespc
     )
     # select(-grep("^sl\\d{2}$|^d\\d{2}$|^slnone$", names(data))) %>%
 
@@ -249,10 +250,11 @@ If it is appropriate, include transformations of these variables. Please careful
 
 ```{r}
 expanded_model <- lm(
-    total_fatalities_rate ~ year_of_observation + blood_alcohol_limit + per_se_law + seatbelt_law + speed_limit_70_up + graduated_drivers_licenses + population_14_to_24_percent + unemployment_rate_percent + vehicle_miles,
+    total_fatalities_rate ~ year_of_observation + blood_alcohol_limit + per_se_law + seatbelt_law + speed_limit_70_up + graduated_drivers_licenses + population_14_to_24_percent + unemployment_rate_percent + vehicle_miles_per_capita,
     data = data_df
 )
-expanded_model %>% stargazer()
+# expanded_model %>% stargazer()
+expanded_model %>% summary()
 ```
 
 # (15 points) State-Level Fixed Effects 
@@ -270,13 +272,14 @@ Which set of estimates do you think is more reliable? Why do you think this?
 
 ```{r}
 state_fixed_effects_model <- plm(
-    total_fatalities_rate ~ year_of_observation + blood_alcohol_limit + per_se_law + seatbelt_law + speed_limit_70_up + graduated_drivers_licenses + population_14_to_24_percent + unemployment_rate_percent + vehicle_miles,
+    total_fatalities_rate ~ year_of_observation + blood_alcohol_limit + per_se_law + seatbelt_law + speed_limit_70_up + graduated_drivers_licenses + population_14_to_24_percent + unemployment_rate_percent + vehicle_miles_per_capita,
     model = "within",
     index = "state",
     effect = "individual",
     data = data_df
 )
-state_fixed_effects_model %>% stargazer()
+# state_fixed_effects_model %>% stargazer()
+state_fixed_effects_model %>% summary()
 ```
 
 For linear models have the following assumption:
@@ -298,13 +301,14 @@ Instead of estimating a fixed effects model, should you have estimated a random 
 # the code didnt like blood_alcohol_limit or year_of_observation.
 # year_of_observation had far more significants than blood_alcohol_limit so i kept it
 state_random_effects_model <- plm(
-    total_fatalities_rate ~ year_of_observation + per_se_law + seatbelt_law + speed_limit_70_up + graduated_drivers_licenses + population_14_to_24_percent + unemployment_rate_percent + vehicle_miles,
+    total_fatalities_rate ~ year_of_observation + blood_alcohol_limit + per_se_law + seatbelt_law + speed_limit_70_up + graduated_drivers_licenses + population_14_to_24_percent + unemployment_rate_percent + vehicle_miles_per_capita,
     model = "random",
     index = "state",
     effect = "individual",
     data = data_df
 )
-state_random_effects_model %>% stargazer()
+# state_random_effects_model %>% stargazer()
+state_random_effects_model %>% summary()
 ```
 
 ```{r}
@@ -357,7 +361,7 @@ current_df <- current_data %>%
 
 # below is a way to see the difference in miles driven between 2018 and every other year #
 year2018_df <- current_df %>% filter(year == 2018)
-other_years_df <- current_df %>% filter(year >= 2020)
+other_years_df <- current_df %>% filter((year == 2020 & month >= 3) | year > 2020)
 
 difference_df <- other_years_df %>%
     left_join(year2018_df, by = "month", suffix = c("", "_2018")) %>%

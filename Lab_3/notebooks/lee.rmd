@@ -325,8 +325,10 @@ Now, use these changes in driving to make forecasts from your models.
 - Suppose that the number of miles driven per capita, decreased by as much as the COVID bust. Using the FE estimates, what would the consequences be on the number of traffic fatalities? Please interpret the estimate.
 
 ```{r}
-current_data <- read_csv("https://fred.stlouisfed.org/graph/fredgraph.csv?bgcolor=%23e1e9f0&chart_type=line&drp=0&fo=open%20sans&graph_bgcolor=%23ffffff&height=450&mode=fred&recession_bars=on&txtcolor=%23444444&ts=12&tts=12&width=1318&nt=0&thu=0&trc=0&show_legend=yes&show_axis_titles=yes&show_tooltip=yes&id=M12MTVUSM227NFWA&scale=left&cosd=1970-12-01&coed=2023-05-01&line_color=%234572a7&link_values=false&line_style=solid&mark_type=none&mw=3&lw=2&ost=-99999&oet=99999&mma=0&fml=a&fq=Monthly&fam=avg&fgst=lin&fgsnd=2020-02-01&line_index=1&transformation=lin&vintage_date=2023-08-03&revision_date=2023-08-03&nd=1970-12-01") %>%
-    rename(date = DATE, millions_of_miles = M12MTVUSM227NFWA) %>%
+# source being used: https://fred.stlouisfed.org/series/TRFVOLUSM227NFWA
+# another source for backup?: https://fred.stlouisfed.org/series/M12MTVUSM227NFWA
+current_data <- read_csv("https://fred.stlouisfed.org/graph/fredgraph.csv?bgcolor=%23e1e9f0&chart_type=line&drp=0&fo=open%20sans&graph_bgcolor=%23ffffff&height=450&mode=fred&recession_bars=on&txtcolor=%23444444&ts=12&tts=12&width=1318&nt=0&thu=0&trc=0&show_legend=yes&show_axis_titles=yes&show_tooltip=yes&id=TRFVOLUSM227NFWA&scale=left&cosd=1970-01-01&coed=2023-05-01&line_color=%234572a7&link_values=false&line_style=solid&mark_type=none&mw=3&lw=2&ost=-99999&oet=99999&mma=0&fml=a&fq=Monthly&fam=avg&fgst=lin&fgsnd=2020-02-01&line_index=1&transformation=lin&vintage_date=2023-08-06&revision_date=2023-08-06&nd=1970-01-01") %>%
+    rename(date = DATE, millions_of_miles = TRFVOLUSM227NFWA) %>%
     mutate(date = as.Date(date)) %>%
     filter(date >= "2018-01-01")
 
@@ -337,29 +339,38 @@ current_df <- current_data %>%
 ```
 
 ```{r}
-current_years_df <- current_df %>%
-    group_by(year) %>%
-    summarise(miles_driven = sum(millions_of_miles))
+# # this is a way to see the difference in miles driven between 2018 and 2020 #
+# year2018_df <- current_df %>% filter(year == 2018)
+# year2020_df <- current_df %>% filter(year == 2020)
 
-year2018_df <- current_years_df %>% filter(year == 2018)
-year2020_df <- current_years_df %>% filter(year == 2020)
-year2021_df <- current_years_df %>% filter(year == 2021)
+# difference_df <- data.frame(
+#     month = year2018_df$month,
+#     difference = (year2020_df$millions_of_miles - year2018_df$millions_of_miles),
+#     percent_change = (((year2020_df$millions_of_miles - year2018_df$millions_of_miles) / year2018_df$millions_of_miles) * 100) %>% round(2)
+# )
 
-year2020_df$miles_driven - year2018_df$miles_driven
+# difference_df %>% kable(label = "Comparing monthly miles driven in 2018 to the same months during 2020")
 
-year2021_df$miles_driven - year2018_df$miles_driven
+# difference_df %>% filter(difference == min(difference))
+# difference_df %>% filter(difference == max(difference))
 
-data.frame(
-    year = c("2020 - 2018", "2021 - 2018"),
-    `miles driven difference` = c(
-        year2020_df$miles_driven - year2018_df$miles_driven,
-        year2021_df$miles_driven - year2018_df$miles_driven
-    ),
-    `percent difference` = c(
-        (year2020_df$miles_driven - year2018_df$miles_driven) / year2018_df$miles_driven,
-        (year2021_df$miles_driven - year2018_df$miles_driven) / year2018_df$miles_driven
-    )
-) %>% kable()
+
+# below is a way to see the difference in miles driven between 2018 and every other year #
+year2018_df <- current_df %>% filter(year == 2018)
+other_years_df <- current_df %>% filter(year >= 2020)
+
+difference_df <- other_years_df %>%
+    left_join(year2018_df, by = "month", suffix = c("", "_2018")) %>%
+    mutate(
+        difference = (millions_of_miles - millions_of_miles_2018),
+        percent_difference = round((difference / millions_of_miles_2018) * 100, 2)
+    ) %>%
+    select(year, month, difference, percent_difference)
+
+difference_df %>% kable()
+
+difference_df %>% filter(difference == min(difference))
+difference_df %>% filter(difference == max(difference))
 ```
 
 ```{r}

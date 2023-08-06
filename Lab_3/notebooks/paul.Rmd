@@ -27,9 +27,9 @@ Specifically, this data set contains data for the 48 continental U.S. states fro
 ```{r load data, echo = TRUE}
 load(file="../data/driving.RData")
 
-## please comment these calls in your work 
-glimpse(data)
-desc
+# ## please comment these calls in your work 
+# glimpse(data)
+# desc
 ```
 
 
@@ -50,18 +50,22 @@ data$speed_limit[data$sl55 >= 0.5] <- 55
 data$speed_limit[data$sl65 >= 0.5] <- 65
 data$speed_limit[data$sl70 >= 0.5] <- 70
 data$speed_limit[data$sl75 >= 0.5] <- 75
-data$speed_limit[data$slnone >= 0.5] <- NA  
+data$speed_limit[data$slnone >= 0.5] <- NA  # DEL make this arbitrarily high?
 
-# Drop the unnecessary columns
+# Drop the unnecessary speed limit columns
 data <- subset(data, select = -c(sl55, sl65, sl70, sl75, slnone))
 
-data$year_of_observation <- data$year
+# Create a year_of_observation variable
+data$year_of_observation <- factor(data$year)
 
-# Drop the unnecessary columns
+# Drop the unnecessary year columns
 data <- subset(data, select = -grep("^d\\d{2}$", names(data)))
 
-data$bac <- 0
+# Factor state
+data$state <- factor(data$state)
 
+# Reencode one-hot variables
+data$bac <- 0
 data$bac[data$bac08>=0.5] <- .08
 data$bac[data$bac10>=0.5] <- .1
 
@@ -69,6 +73,7 @@ data$zeroTolerance <- 0
 data$zeroTolerance[data$zerotol>=0.5] <- 1
 data$zeroTolerance[data$zerotol<0.5] <- 0
 
+# DEL why is the threshold 19.5 here?
 data$minAge <- 0
 data$minAge[data$minage>=19.5] <- 21
 data$minAge[data$minage<19.5] <- 18
@@ -80,8 +85,9 @@ data$perSe[data$perse<0.5] = 0
 # Drop the unnecessary columns
 data <- subset(data, select = -c(bac08, bac10, zerotol, minage, perse))
 
+# Rename variables
 data <- data %>%
-  rename(total_fatalities_rate = totfatrte,
+  rename(total_fatality_rate = totfatrte,
          nighttime_fatality_rate  = nghtfatrte,
          weekend_fatality_rate = wkndfatrte,
          total_fatalities = totfat,
@@ -91,7 +97,12 @@ data <- data %>%
          nighttime_fatalities_per_1mmiles = nghtfatpvm,
          weekend_fatalities_per_1mmiles = wkndfatpvm)
 
-data
+# add log fatality fate
+
+data$log_fatility_rate = log(data$total_fatality_rate)
+
+qqnorm(data$total_fatality_rate, main = "Total Fatality Rate Normality Check")
+qqnorm(data$log_fatility_rate,  main = "Log Total Fatality Rate Normality Check")
 ```
 2. (5 points) Provide a description of the basic structure of the dataset. What is this data? How, where, and when is it collected? Is the data generated through a survey or some other method? Is the data that is presented a sample from the population, or is it a *census* that represents the entire population? Minimally, this should include:
     - How is the our dependent variable of interest `total_fatalities_rate` defined? 
@@ -111,51 +122,51 @@ library(ggplot2)
 library(patchwork)
 
 # Scatter plot of total_fatalities_rate vs. vehicmiles
-#ggplot(data = data, aes(x = vehicmiles, y = total_fatalities_rate)) +
+#ggplot(data = data, aes(x = vehicmiles, y = log_fatility_rate)) +
 #  geom_point()
 
 # Box plot of total_fatalities_rate by state
-state_box <- ggplot(data = data, aes(x = as.factor(state), y = total_fatalities_rate)) +
+state_box <- ggplot(data = data, aes(x = as.factor(state), y = log_fatility_rate)) +
   geom_boxplot()
 
 # Bar plot of average total_fatalities_rate by year
-fat_by_year = ggplot(data = data, aes(x = as.factor(year), y = total_fatalities_rate)) +
+fat_by_year = ggplot(data = data, aes(x = as.factor(year), y = log_fatility_rate)) +
   stat_summary(fun = mean, geom = "bar")
 
 # Density plot of total_fatalities_rate
-#ggplot(data = data, aes(x = total_fatalities_rate)) +
+#ggplot(data = data, aes(x = log_fatility_rate)) +
 #  geom_density()
 
 # Bar plot of total_fatalities_rate by BAC
-bac_plot <- ggplot(data = data, aes(x = as.factor(bac), y = total_fatalities_rate)) +
+bac_plot <- ggplot(data = data, aes(x = as.factor(bac), y = log_fatility_rate)) +
   geom_boxplot()
 
 # Box plot of total_fatalities_rate by Speed Limit
-sl_plot <- ggplot(data = data, aes(x = as.factor(speed_limit), y = total_fatalities_rate)) +
+sl_plot <- ggplot(data = data, aes(x = as.factor(speed_limit), y = log_fatility_rate)) +
   geom_boxplot()
 
 # Box plot of total_fatalities_rate by Seatbelt
-seatbelt_plot <- ggplot(data = data, aes(x = as.factor(seatbelt), y = total_fatalities_rate)) +
+seatbelt_plot <- ggplot(data = data, aes(x = as.factor(seatbelt), y = log_fatility_rate)) +
   geom_boxplot()
 
 # Box plot of total_fatalities_rate by Zero Tolerance
-zero_plot <- ggplot(data = data, aes(x = as.factor(zeroTolerance), y = total_fatalities_rate)) +
+zero_plot <- ggplot(data = data, aes(x = as.factor(zeroTolerance), y = log_fatility_rate)) +
   geom_boxplot()
 
 # Box plot of minimum age to get a drivers license
-minage_plot <- ggplot(data = data, aes(x = as.factor(minAge), y = total_fatalities_rate)) +
+minage_plot <- ggplot(data = data, aes(x = as.factor(minAge), y = log_fatility_rate)) +
   geom_boxplot()
 
 # Box plot of fatalities based on per se laws
-perse_plot <- ggplot(data = data, aes(x = as.factor(perSe), y = total_fatalities_rate)) +
+perse_plot <- ggplot(data = data, aes(x = as.factor(perSe), y = log_fatility_rate)) +
   geom_boxplot()
 
 # Scatter plot of unemployment rate vs fatality rate
-unem_plot <- ggplot(data = data, aes(x = unem, y = total_fatalities_rate)) +
+unem_plot <- ggplot(data = data, aes(x = unem, y = log_fatility_rate)) +
   geom_point()
 
 # Scatter plot of 14-24 rate vs fatality rate
-young_plot <- ggplot(data = data, aes(x = perc14_24, y = total_fatalities_rate)) +
+young_plot <- ggplot(data = data, aes(x = perc14_24, y = log_fatility_rate)) +
   geom_point()
 
 # Plot overall trends
@@ -167,6 +178,23 @@ young_plot <- ggplot(data = data, aes(x = perc14_24, y = total_fatalities_rate))
 # Plot trends by Numerical variable
 (unem_plot|young_plot)
 ```
+```{r scatter matrix}
+
+data %>%
+  filter(state %in% sample_n(select(data, c(state)), 16)$state) %>%
+  ggplot(aes(year,log_fatility_rate,color=state)) +
+  geom_point(alpha=0.4) +
+  geom_smooth(method="lm") +
+  facet_wrap(~state) +
+  theme(legend.position="none",axis.text.x=element_text(angle=45,hjust=1,vjust=1,size=8),
+    axis.text.y=element_text(size=8)) +
+  theme(strip.text=element_text(size=4)) +
+  # scale_y_continuous(label=percent) +
+  xlab("State") +
+  ylab("Log Fatality Rate")
+
+```
+
 
 > So what do we notice in our EDA?
 
@@ -184,14 +212,14 @@ Estimate a linear regression model of *totfatrte* on a set of dummy variables fo
 
 # Create filtered data for years of interest
 data_81_thru_04 <- data %>%
-  filter(year >= 1981 & year <= 2004)
+  filter(year >= 1981 & year <= 2004) %>%
 
 # Fit linear model
-lm_model <- lm(total_fatalities_rate ~ year_of_observation +as.factor(state), data = data_81_thru_04)
+lm_model <- lm(log_fatility_rate ~ year_of_observation, data = data_81_thru_04)
 
 summary(lm_model)
 
-plot(data_81_thru_04$year_of_observation, data_81_thru_04$total_fatalities_rate, col=data_81_thru_04$state) +
+plot(data_81_thru_04$year, data_81_thru_04$log_fatility_rate, col=data_81_thru_04$state) +
 abline(lm_model, col="red")
 
 ```
@@ -227,7 +255,7 @@ If it is appropriate, include transformations of these variables. Please careful
 # DEL do more EDA to confirm if any variables need to be transformed
 
 # Fit expanded linear model
-exp_lm_model <- lm(total_fatalities_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
+exp_lm_model <- lm(log_fatility_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
                      sl70plus + gdl + perc14_24 + unem + vehicmilespc, data = data_81_thru_04)
 
 summary(exp_lm_model)
@@ -256,7 +284,7 @@ Which set of estimates do you think is more reliable? Why do you think this?
 data_81_thru_04_plm <- pdata.frame(data_81_thru_04, index = c("state", "year_of_observation"))
 
 # Fit fixed effects model
-fixed_model <- plm(total_fatalities_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
+fixed_model <- plm(log_fatility_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
                       sl70plus + gdl + perc14_24 + unem + vehicmilespc, 
                     data = data_81_thru_04_plm,
                     model = "within", 
@@ -279,7 +307,7 @@ Instead of estimating a fixed effects model, should you have estimated a random 
 correlation correctly. To see if this assumption is met, we run the Hausman Test:
 
 ```{r Hausman test}
-re_model <- plm(total_fatalities_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
+re_model <- plm(log_fatility_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
                       sl70plus + gdl + perc14_24 + unem + vehicmilespc, 
                     data = data_81_thru_04_plm,
                     model = "random", 

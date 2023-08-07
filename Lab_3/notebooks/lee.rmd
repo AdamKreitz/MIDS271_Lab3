@@ -74,7 +74,9 @@ data_df <- data %>%
         speed_limit_70_up = factor(sl70plus != 0),
         graduated_drivers_licenses = factor(gdl != 0),
         unemployment_rate_percent = unem / 100,
-        population_14_to_24_percent = perc14_24 / 100
+        population_14_to_24_percent = perc14_24 / 100,
+        log_total_fatalities_rate = log(totfatrte),
+        log_vehicle_miles_per_capita = log(vehicmilespc)
     ) %>%
     rename(
         total_fatalities = totfat,
@@ -126,6 +128,34 @@ data_df %>% glimpse()
 #         x = "Log total fatality rate",
 #         y = "Density"
 #     )
+# # density plot of 'total_fatalities_rate'
+data_df %>%
+    ggplot(aes(x = vehicle_miles_per_capita)) +
+    geom_density()
+
+data_df %>%
+    ggplot(aes(x = log(vehicle_miles_per_capita))) +
+    geom_density()
+
+
+data_df %>%
+    ggplot(aes(x = unemployment_rate_percent)) +
+    geom_density()
+
+data_df %>%
+    ggplot(aes(x = log(unemployment_rate_percent))) +
+    geom_density()
+
+#### not worth
+# data_df %>%
+#     ggplot(aes(x = population_14_to_24_percent)) +
+#     geom_density()
+
+# # # log transformation of 'total_fatalities_rate' and density plot
+# data_df %>%
+#     mutate(vehicle_miles_per_capita = log(population_14_to_24_percent)) %>%
+#     ggplot(aes(x = vehicle_miles_per_capita)) +
+#     geom_density() 
 
 # Create a new dataframe to store the average of 'total_fatalities_rate' in each year
 avg_total_fatalities_rate <- data_df %>%
@@ -176,7 +206,7 @@ data_df %>%
     ggplot(aes(x = speed_limit, y = total_fatalities_rate)) +
     geom_boxplot() +
     labs(
-        title = "Boxplot of fatalities by speed limit",
+        title = "Boxplot of total fatality rate by speed limit",
         x = "Speed limit",
         y = "Total fatality rate"
     )
@@ -188,7 +218,7 @@ data_df %>%
     ggplot(aes(x = state_str, y = total_fatalities_rate)) +
     geom_col() +
     labs(
-        title = "Boxplot of fatalities by state",
+        title = "Bar plot of total fatality rate by state",
         x = "State",
         y = "Total fatality rate"
     ) +
@@ -199,7 +229,7 @@ data_df %>%
     ggplot(aes(x = blood_alcohol_limit, y = total_fatalities_rate)) +
     geom_boxplot() +
     labs(
-        title = "Boxplot of fatalities by BAC",
+        title = "Boxplot of total fatality rate by BAC",
         x = "BAC",
         y = "Total fatality rate"
     )
@@ -221,11 +251,10 @@ Estimate a linear regression model of *totfatrte* on a set of dummy variables fo
     - Are the uncertainty estimate reliable, unbiased estimates of sampling based variability? Or, are they biased due to the way that the data is structured? 
 
 ```{r}
-dummy_data <- data_df %>% filter(year_of_observation_int >= 1981 & year_of_observation_int <= 2004)
-dummy_data %>% nrow()
-dummy_lm <- lm(total_fatalities_rate ~ year_of_observation, dummy_data)
+dummy_lm <- lm(log_total_fatalities_rate ~ year_of_observation, data_df)
 
-dummy_lm %>% stargazer()
+# dummy_lm %>% stargazer()
+dummy_lm %>% summary()
 ```
 
 # (15 points) Expanded Model 
@@ -250,7 +279,7 @@ If it is appropriate, include transformations of these variables. Please careful
 
 ```{r}
 expanded_model <- lm(
-    total_fatalities_rate ~ year_of_observation + blood_alcohol_limit + per_se_law + seatbelt_law + speed_limit_70_up + graduated_drivers_licenses + population_14_to_24_percent + unemployment_rate_percent + vehicle_miles_per_capita,
+    log_total_fatalities_rate ~ year_of_observation + blood_alcohol_limit + per_se_law + seatbelt_law + speed_limit_70_up + graduated_drivers_licenses + population_14_to_24_percent + unemployment_rate_percent + vehicle_miles_per_capita,
     data = data_df
 )
 # expanded_model %>% stargazer()
@@ -272,7 +301,7 @@ Which set of estimates do you think is more reliable? Why do you think this?
 
 ```{r}
 state_fixed_effects_model <- plm(
-    total_fatalities_rate ~ year_of_observation + blood_alcohol_limit + per_se_law + seatbelt_law + speed_limit_70_up + graduated_drivers_licenses + population_14_to_24_percent + unemployment_rate_percent + vehicle_miles_per_capita,
+    log_total_fatalities_rate ~ year_of_observation + blood_alcohol_limit + per_se_law + seatbelt_law + speed_limit_70_up + graduated_drivers_licenses + population_14_to_24_percent + unemployment_rate_percent + vehicle_miles_per_capita,
     model = "within",
     index = "state",
     effect = "individual",
@@ -301,7 +330,7 @@ Instead of estimating a fixed effects model, should you have estimated a random 
 # the code didnt like blood_alcohol_limit or year_of_observation.
 # year_of_observation had far more significants than blood_alcohol_limit so i kept it
 state_random_effects_model <- plm(
-    total_fatalities_rate ~ year_of_observation + blood_alcohol_limit + per_se_law + seatbelt_law + speed_limit_70_up + graduated_drivers_licenses + population_14_to_24_percent + unemployment_rate_percent + vehicle_miles_per_capita,
+    log_total_fatalities_rate ~ year_of_observation + blood_alcohol_limit + per_se_law + seatbelt_law + speed_limit_70_up + graduated_drivers_licenses + population_14_to_24_percent + unemployment_rate_percent + vehicle_miles_per_capita,
     model = "random",
     index = "state",
     effect = "individual",
@@ -402,6 +431,10 @@ difference_df %>% filter(difference == max(difference))
 #     unemployment_rate_percent = 1,
 #     vehicle_miles = 1
 # ), type = "response")
+```
+
+```{r}
+
 ```
 
 # (5 points) Evaluate Error 

@@ -72,7 +72,6 @@ data$zeroTolerance <- 0
 data$zeroTolerance[data$zerotol>=0.5] <- 1
 data$zeroTolerance[data$zerotol<0.5] <- 0
 
-# DEL why is the threshold 19.5 here?
 data$minAge <- 0
 data$minAge[data$minage>=19.5] <- 21
 data$minAge[data$minage<19.5] <- 18
@@ -95,6 +94,11 @@ data <- data %>%
          total_fatalities_per_1mmiles = totfatpvm,
          nighttime_fatalities_per_1mmiles = nghtfatpvm,
          weekend_fatalities_per_1mmiles = wkndfatpvm)
+
+# Log non-normal variables
+data$log_fatility_rate = log(data$total_fatality_rate)
+data$log_unem = log(data$unem)
+data$log_vehicmilespc = log(data$vehicmilespc)
 ```
 2. (5 points) Provide a description of the basic structure of the dataset. What is this data? How, where, and when is it collected? Is the data generated through a survey or some other method? Is the data that is presented a sample from the population, or is it a *census* that represents the entire population? Minimally, this should include:
     - How is the our dependent variable of interest `total_fatalities_rate` defined? 
@@ -131,7 +135,7 @@ data_81_thru_04 <- data %>%
   filter(year >= 1981 & year <= 2004)
 
 # Fit linear model
-lm_model <- lm(total_fatality_rate ~ year_of_observation, data = data_81_thru_04)
+lm_model <- lm(log_fatility_rate ~ year_of_observation, data = data_81_thru_04)
 
 summary(lm_model)
 ```
@@ -158,11 +162,9 @@ If it is appropriate, include transformations of these variables. Please careful
 - Does having a primary seat belt law? 
 
 ```{r expanded linear model}
-# DEL do more EDA to confirm if any variables need to be transformed
-
 # Fit expanded linear model
-exp_lm_model <- lm(total_fatality_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
-                     sl70plus + gdl + perc14_24 + unem + vehicmilespc, data = data_81_thru_04)
+exp_lm_model <- lm(log_fatility_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
+                     sl70plus + gdl + perc14_24 + log_unem + log_vehicmilespc, data = data_81_thru_04)
 
 summary(exp_lm_model)
 
@@ -190,8 +192,8 @@ Which set of estimates do you think is more reliable? Why do you think this?
 data_81_thru_04_plm <- pdata.frame(data_81_thru_04, index = c("state", "year_of_observation"))
 
 # Fit fixed effects model
-fixed_model <- plm(total_fatality_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
-                      sl70plus + gdl + perc14_24 + unem + vehicmilespc, 
+fixed_model <- plm(log_fatility_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
+                      sl70plus + gdl + perc14_24 + log_unem + log_vehicmilespc, 
                     data = data_81_thru_04_plm,
                     model = "within", 
                     effect = "individual")
@@ -215,8 +217,8 @@ Instead of estimating a fixed effects model, should you have estimated a random 
 # DEL don't print out these results in the final report because don't actually need to estimate
 
 # Fit random effects model
-random_model <- plm(total_fatality_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
-                      sl70plus + gdl + perc14_24 + unem + vehicmilespc, 
+random_model <- plm(log_fatility_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
+                      sl70plus + gdl + perc14_24 + log_unem + log_vehicmilespc, 
                     data = data_81_thru_04_plm,
                     model = "random")
 
@@ -274,26 +276,27 @@ comparison_data$perc_change <- (comparison_data$millions_of_miles_pand - compari
 covid_bust_date <- comparison_data$date[which.min(comparison_data$perc_change)]
 print(covid_bust_date)
 covid_bust_perc <- min(comparison_data$perc_change)
-print(covid_bust)
+print(covid_bust_perc)
 
 
 #What month demonstrated the largest increase in driving? How much, in percentage terms, higher was this driving?
 covid_boom_date <- comparison_data$date[which.max(comparison_data$perc_change)]
 print(covid_boom_date)
 covid_boom_perc <- max(comparison_data$perc_change)
-print(covid_boom)
+print(covid_boom_perc)
 ```
 
 ```{r estimate boom}
-# DEL this doesn't work
-
-
 # Suppose that the number of miles driven per capita, increased by as much as the COVID boom. Using the FE estimates, what would the consequences be on the number of traffic fatalities? Please interpret the estimate
 
 
 # Calculate boom miles for vehicmilespc
 covid_boom_mill_mi <- comparison_data$millions_of_miles_pand[which.max(comparison_data$perc_change)]
 covid_boom_mi <- covid_boom_mill_mi * 1000000
+
+
+
+# DEL this doesn't work TRASH
 
 # Create prediction data with new vehicmilespc
 # new_data_boom <- data.frame(year_of_observation = data_81_thru_04_plm$year_of_observation,
@@ -328,25 +331,25 @@ covid_boom_mi <- covid_boom_mill_mi * 1000000
 
 
 
-new_data_boom <- data.frame(data_81_thru_04_plm) %>%
-  filter(year_of_observation == 2004) %>%
-  mutate(vehicmilespc = covid_boom_mi / statepop) %>% # DEL use the mileage for covid boom or perc increase?
-  select(year_of_observation, vehicmilespc, bac, perSe, sbprim, sbsecon, sl70plus, gdl, perc14_24, unem, state) %>%
-  mutate(year_of_observation = 2005:2006) %>%
-  mutate(year_of_observation = factor(year_of_observation))
-
-new_data_boom <- pdata.frame(new_data_boom, index = c("state", "year_of_observation"))
-
-
-
-predicted_values <- predict(fixed_model, newdata = new_data_boom)
-
-predicted_values
-
-model.matrix(fixed_model)
-
-class(data_81_thru_04_plm)
-class(new_data_boom)
+# new_data_boom <- data.frame(data_81_thru_04_plm) %>%
+#   filter(year_of_observation == 2004) %>%
+#   mutate(vehicmilespc = covid_boom_mi / statepop) %>% # DEL use the mileage for covid boom or perc increase?
+#   select(year_of_observation, vehicmilespc, bac, perSe, sbprim, sbsecon, sl70plus, gdl, perc14_24, unem, state) %>%
+#   mutate(year_of_observation = 2005:2006) %>%
+#   mutate(year_of_observation = factor(year_of_observation))
+# 
+# new_data_boom <- pdata.frame(new_data_boom, index = c("state", "year_of_observation"))
+# 
+# 
+# 
+# predicted_values <- predict(fixed_model, newdata = new_data_boom)
+# 
+# predicted_values
+# 
+# model.matrix(fixed_model)
+# 
+# class(data_81_thru_04_plm)
+# class(new_data_boom)
 
 
 
@@ -359,34 +362,31 @@ class(new_data_boom)
 # Create a new data frame with the predictor variables for prediction
 # Replace 'new_data_boom' with the data containing predictor variables for which you want to predict.
 # Ensure that the column names and order match those used in 'fixed_model'.
-new_data_boom <- data.frame(state = unique(data_81_thru_04_plm$state),  
-                            year_of_observation = 2005, 
-                            bac = data_81_thru_04_plm$bac,
-                            perSe = data_81_thru_04_plm$perSe,
-                            sbprim = data_81_thru_04_plm$sbprim,
-                            sbsecon = data_81_thru_04_plm$sbsecon,
-                            sl70plus = data_81_thru_04_plm$sl70plus,
-                            gdl = data_81_thru_04_plm$gdl,
-                            perc14_24 = data_81_thru_04_plm$perc14_24,
-                            unem = data_81_thru_04_plm$unem,
-                            vehicmilespc = covid_boom_mi / data_81_thru_04_plm$statepop)
+# new_data_boom <- data.frame(state = unique(data_81_thru_04_plm$state),  
+#                             year_of_observation = 2005, 
+#                             bac = data_81_thru_04_plm$bac,
+#                             perSe = data_81_thru_04_plm$perSe,
+#                             sbprim = data_81_thru_04_plm$sbprim,
+#                             sbsecon = data_81_thru_04_plm$sbsecon,
+#                             sl70plus = data_81_thru_04_plm$sl70plus,
+#                             gdl = data_81_thru_04_plm$gdl,
+#                             perc14_24 = data_81_thru_04_plm$perc14_24,
+#                             unem = data_81_thru_04_plm$unem,
+#                             vehicmilespc = covid_boom_mi / data_81_thru_04_plm$statepop)
 
 # Create a pdata.frame with the appropriate panel structure
 # Replace 'state' with the name of the column that contains the panel identifiers in 'new_data_boom'.
-new_data_boom_plm <- pdata.frame(new_data_boom, index = c("state", "year_of_observation"))
+# new_data_boom_plm <- pdata.frame(new_data_boom, index = c("state", "year_of_observation"))
 
 # Now you can use 'new_data_boom_plm' to predict using 'fixed_model'
-predicted_values <- predict(fixed_model, newdata = new_data_boom_plm)
-
-
-
-
-
-
-
-
-
-
+# predicted_values <- predict(fixed_model, newdata = new_data_boom_plm)
+# 
+# 
+# 
+# 
+# 
+# 
+# responses <- data.frame(pmodel.response(fixed_model))
 
 
 

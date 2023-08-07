@@ -166,13 +166,22 @@ If it is appropriate, include transformations of these variables. Please careful
 exp_lm_model <- lm(log_fatility_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
                      sl70plus + gdl + perc14_24 + log_unem + log_vehicmilespc, data = data)
 
-stargazer(exp_lm_model, title = "Preliminary Model Results", align = TRUE)
+stargazer(exp_lm_model, title = "Expanded Model Results", align = TRUE)
 
 # summary(exp_lm_model)
 
 # DEL confirmed there is nothing other than 0/1 indicators for sbprim and sbsecond
 # table(data$sbprim)
 # table(data$sbsecon)
+```
+
+
+```{r expanded lm effects}
+# Calculate the effect of BAC
+(1 - exp(coefficients(exp_lm_model)["bac"]/100)) * 100
+
+# Calculate the effect of per se
+(1 - exp(coefficients(exp_lm_model)["perSe"])) * 100
 ```
 
 
@@ -201,9 +210,20 @@ fixed_model <- plm(log_fatility_rate ~ year_of_observation + bac + perSe + sbpri
                     model = "within", 
                     effect = "individual")
 
-summary(fixed_model)
+stargazer(fixed_model, title = "Fixed Effects Model Results", align = TRUE)
+
+
+# summary(fixed_model)
 
 # ?pdata.frame
+```
+
+```{r fe effects}
+# Calculate the effect of per se
+(1 - exp(coefficients(fixed_model)["perSe"])) * 100
+
+# Calculate the effect of sbprim
+(1 - exp(coefficients(fixed_model)["sbprim"])) * 100
 ```
 
 

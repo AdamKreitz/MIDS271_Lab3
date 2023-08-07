@@ -10,6 +10,7 @@ library(tidyverse)
 library(plm)
 library(readr)
 library(lubridate)
+library(stargazer)
 ```
 
 
@@ -128,17 +129,16 @@ Estimate a linear regression model of *totfatrte* on a set of dummy variables fo
     - Are the uncertainty estimate reliable, unbiased estimates of sampling based variability? Or, are they biased due to the way that the data is structured? 
     
 ```{r linear model}
-# DEL what does the instruction about dummy variables mean?
-
-# Create filtered data for years of interest
-data_81_thru_04 <- data %>%
-  filter(year >= 1981 & year <= 2004)
-
 # Fit linear model
-lm_model <- lm(log_fatility_rate ~ year_of_observation, data = data_81_thru_04)
+lm_model <- lm(log_fatility_rate ~ year_of_observation, data = data)
 
-summary(lm_model)
+stargazer(lm_model, title = "Preliminary Model Results", align = TRUE)
+
+# summary(lm_model)
 ```
+
+
+
 
 
 # (15 points) Expanded Model 
@@ -164,14 +164,17 @@ If it is appropriate, include transformations of these variables. Please careful
 ```{r expanded linear model}
 # Fit expanded linear model
 exp_lm_model <- lm(log_fatility_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
-                     sl70plus + gdl + perc14_24 + log_unem + log_vehicmilespc, data = data_81_thru_04)
+                     sl70plus + gdl + perc14_24 + log_unem + log_vehicmilespc, data = data)
 
-summary(exp_lm_model)
+stargazer(exp_lm_model, title = "Preliminary Model Results", align = TRUE)
+
+# summary(exp_lm_model)
 
 # DEL confirmed there is nothing other than 0/1 indicators for sbprim and sbsecond
 # table(data$sbprim)
 # table(data$sbsecon)
 ```
+
 
 # (15 points) State-Level Fixed Effects 
 
@@ -189,12 +192,12 @@ Which set of estimates do you think is more reliable? Why do you think this?
 ```{r fixed effects model}
 # Convert data to a plm dataframe
 # DEL test if get same result using plm.data()
-data_81_thru_04_plm <- pdata.frame(data_81_thru_04, index = c("state", "year_of_observation"))
+data_plm <- pdata.frame(data, index = c("state", "year_of_observation"))
 
 # Fit fixed effects model
 fixed_model <- plm(log_fatility_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
                       sl70plus + gdl + perc14_24 + log_unem + log_vehicmilespc, 
-                    data = data_81_thru_04_plm,
+                    data = data_plm,
                     model = "within", 
                     effect = "individual")
 
@@ -219,7 +222,7 @@ Instead of estimating a fixed effects model, should you have estimated a random 
 # Fit random effects model
 random_model <- plm(log_fatility_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
                       sl70plus + gdl + perc14_24 + log_unem + log_vehicmilespc, 
-                    data = data_81_thru_04_plm,
+                    data = data_plm,
                     model = "random")
 
 summary(random_model)
@@ -394,7 +397,7 @@ covid_boom_mi <- covid_boom_mill_mi * 1000000
 
 ```{r}
 # DELETE this chunk
-class(data_81_thru_04_plm$year_of_observation)
+class(data_plm$year_of_observation)
 
 class(new_data_boom$year_of_observation)
 ```

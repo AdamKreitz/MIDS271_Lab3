@@ -270,13 +270,7 @@ Estimate a linear regression model of *totfatrte* on a set of dummy variables fo
     - Are the uncertainty estimate reliable, unbiased estimates of sampling based variability? Or, are they biased due to the way that the data is structured? 
 
 ```{r}
-<<<<<<< HEAD
 dummy_lm <- lm(log_total_fatalities_rate ~ year_of_observation, data_df)
-=======
-dummy_data <- data_df %>% filter(year_of_observation_int >= 1981 & year_of_observation_int <= 2004)
-dummy_data %>% nrow()
-dummy_lm <- lm(log_total_fatalities_rate ~ year_of_observation, dummy_data)
->>>>>>> 14853a5 (added eda labels)
 
 # dummy_lm %>% stargazer()
 dummy_lm %>% summary()

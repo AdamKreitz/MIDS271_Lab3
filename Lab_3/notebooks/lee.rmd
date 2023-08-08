@@ -131,20 +131,39 @@ data_df %>% glimpse()
 # # density plot of 'total_fatalities_rate'
 data_df %>%
     ggplot(aes(x = vehicle_miles_per_capita)) +
-    geom_density()
+    geom_density() +
+    labs(
+        title = "Density plot of vehicle miles per capita",
+        x = "Vehicle miles per capita",
+        y = "Density"
+    )
 
 data_df %>%
     ggplot(aes(x = log(vehicle_miles_per_capita))) +
-    geom_density()
-
+    geom_density() +
+    labs(
+        title = "Density plot of log vehicle miles per capita",
+        x = "Log vehicle miles per capita",
+        y = "Density"
+    )
 
 data_df %>%
     ggplot(aes(x = unemployment_rate_percent)) +
-    geom_density()
+    geom_density() +
+    labs(
+        title = "Density plot of unemployment rate",
+        x = "Unemployment rate",
+        y = "Density"
+    )
 
 data_df %>%
     ggplot(aes(x = log(unemployment_rate_percent))) +
-    geom_density()
+    geom_density() +
+    labs(
+        title = "Density plot of log unemployment rate",
+        x = "Log unemployment rate",
+        y = "Density"
+    )
 
 #### not worth
 # data_df %>%
@@ -251,7 +270,13 @@ Estimate a linear regression model of *totfatrte* on a set of dummy variables fo
     - Are the uncertainty estimate reliable, unbiased estimates of sampling based variability? Or, are they biased due to the way that the data is structured? 
 
 ```{r}
+<<<<<<< HEAD
 dummy_lm <- lm(log_total_fatalities_rate ~ year_of_observation, data_df)
+=======
+dummy_data <- data_df %>% filter(year_of_observation_int >= 1981 & year_of_observation_int <= 2004)
+dummy_data %>% nrow()
+dummy_lm <- lm(log_total_fatalities_rate ~ year_of_observation, dummy_data)
+>>>>>>> 14853a5 (added eda labels)
 
 # dummy_lm %>% stargazer()
 dummy_lm %>% summary()

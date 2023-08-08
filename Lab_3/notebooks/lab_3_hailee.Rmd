@@ -267,10 +267,16 @@ Now, use these changes in driving to make forecasts from your models.
 - Suppose that the number of miles driven per capita, decreased by as much as the COVID bust. Using the FE estimates, what would the consequences be on the number of traffic fatalities? Please interpret the estimate.
 
 ```{r read monthly miles driven data}
-monthly_miles <- read_csv("~/271/MIDS271_Lab3/Lab_3/data/monthly_miles_driven.csv")
+monthly_miles <- read_csv("../data/monthly_miles_driven.csv")
 
 # Show first few rows
 head(monthly_miles)
+```
+
+```{r get population}
+monthly_population <- read_csv("../data/POPTHM.csv")
+# Show first few rows
+head(monthly_population)
 ```
 
 
@@ -280,26 +286,39 @@ monthly_miles$date <- lubridate::mdy(monthly_miles$date)
 monthly_miles$year <- lubridate::year(monthly_miles$date)
 monthly_miles$month <- lubridate::month(monthly_miles$date)
 
+monthly_population$year <- lubridate::year(monthly_population$DATE)
+monthly_population$month <- lubridate::month(monthly_population$DATE)
+
+monthly_miles <- monthly_miles %>%
+  left_join(monthly_population, by=c("year", "month")) %>%
+  mutate(miles_per_capita = millions_of_miles * 1000 / POPTHM)
+
 monthly_miles_2018 <- monthly_miles %>%
   filter(date >= "2018-01-01" & date <= "2018-12-31") %>%
-  select(date, year, month, millions_of_miles_nonpand = millions_of_miles)
+  select(date, year, month, millions_of_miles_nonpand = miles_per_capita)
 
 monthly_miles_pand <- monthly_miles %>%
   filter(date >= "2020-03-01") %>%
-  select(date, year, month, millions_of_miles_pand = millions_of_miles)
+  select(date, year, month, millions_of_miles_pand = miles_per_capita)
 
 comparison_data <- monthly_miles_pand %>%
   left_join(monthly_miles_2018, by = "month") %>%
   select(date = date.x, year = year.x, month, millions_of_miles_pand, millions_of_miles_nonpand)
 
+comparison_data$total_change <- (comparison_data$millions_of_miles_pand -   comparison_data$millions_of_miles_nonpand)
+
+comparison_data$total_log_change <- (log(comparison_data$millions_of_miles_pand) -   log(comparison_data$millions_of_miles_nonpand))
+
 comparison_data$perc_change <- (comparison_data$millions_of_miles_pand - comparison_data$millions_of_miles_nonpand) / comparison_data$millions_of_miles_nonpand * 100
 
 
-# What month demonstrated the largest decrease in driving? How much, in percentage terms, lower was this driving? 
+# What month demonstrated the largest decrease in driving? How much, in percentage terms, lower was this driving?
 covid_bust_date <- comparison_data$date[which.min(comparison_data$perc_change)]
 print(covid_bust_date)
 covid_bust_perc <- min(comparison_data$perc_change)
 print(covid_bust_perc)
+covid_bust_tot <- min(comparison_data$total_log_change)
+print(covid_bust_tot)
 
 
 #What month demonstrated the largest increase in driving? How much, in percentage terms, higher was this driving?
@@ -307,122 +326,38 @@ covid_boom_date <- comparison_data$date[which.max(comparison_data$perc_change)]
 print(covid_boom_date)
 covid_boom_perc <- max(comparison_data$perc_change)
 print(covid_boom_perc)
-```
-
-```{r estimate boom}
-# Suppose that the number of miles driven per capita, increased by as much as the COVID boom. Using the FE estimates, what would the consequences be on the number of traffic fatalities? Please interpret the estimate
-
-
-# Calculate boom miles for vehicmilespc
-covid_boom_mill_mi <- comparison_data$millions_of_miles_pand[which.max(comparison_data$perc_change)]
-covid_boom_mi <- covid_boom_mill_mi * 1000000
-
-
-
-# DEL this doesn't work TRASH
-
-# Create prediction data with new vehicmilespc
-# new_data_boom <- data.frame(year_of_observation = data_81_thru_04_plm$year_of_observation,
-#                        bac = data_81_thru_04_plm$bac,
-#                        perSe = data_81_thru_04_plm$perSe,
-#                        sbprim = data_81_thru_04_plm$sbprim,
-#                        sbsecon = data_81_thru_04_plm$sbsecon,
-#                        sl70plus = data_81_thru_04_plm$sl70plus,
-#                        gdl = data_81_thru_04_plm$gdl,
-#                        perc14_24 = data_81_thru_04_plm$perc14_24,
-#                        unem = data_81_thru_04_plm$unem,
-#                        vehicmilespc = covid_boom_mi / data_81_thru_04_plm$statepop)
-
-# new_data_boom_05 <- data.frame(data_81_thru_04_plm) %>%
-#   filter(year_of_observation == 2004) %>%
-#   mutate(vehicmilespc = covid_boom_mi / statepop) %>% # DEL use the mileage for covid boom or perc increase?
-#   select(year_of_observation, vehicmilespc, bac, perSe, sbprim, sbsecon, sl70plus, gdl, perc14_24, unem, state) %>%
-#   mutate(year_of_observation = 2005) %>%
-#   mutate(year_of_observation = factor(year_of_observation))
-# 
-# new_data_boom_06 <- data.frame(data_81_thru_04_plm) %>%
-#   filter(year_of_observation == 2004) %>%
-#   mutate(vehicmilespc = covid_boom_mi / statepop) %>% # DEL use the mileage for covid boom or perc increase?
-#   select(year_of_observation, vehicmilespc, bac, perSe, sbprim, sbsecon, sl70plus, gdl, perc14_24, unem, state) %>%
-#   mutate(year_of_observation = 2006) %>%
-#   mutate(year_of_observation = factor(year_of_observation))
-# 
-# new_data_boom <- full_join(new_data_boom_05, new_data_boom_06)
-# 
-# new_data_boom <- pdata.frame(new_data_boom, index = c("state", "year_of_observation"))
-
-
-
-
-# new_data_boom <- data.frame(data_81_thru_04_plm) %>%
-#   filter(year_of_observation == 2004) %>%
-#   mutate(vehicmilespc = covid_boom_mi / statepop) %>% # DEL use the mileage for covid boom or perc increase?
-#   select(year_of_observation, vehicmilespc, bac, perSe, sbprim, sbsecon, sl70plus, gdl, perc14_24, unem, state) %>%
-#   mutate(year_of_observation = 2005:2006) %>%
-#   mutate(year_of_observation = factor(year_of_observation))
-# 
-# new_data_boom <- pdata.frame(new_data_boom, index = c("state", "year_of_observation"))
-# 
-# 
-# 
-# predicted_values <- predict(fixed_model, newdata = new_data_boom)
-# 
-# predicted_values
-# 
-# model.matrix(fixed_model)
-# 
-# class(data_81_thru_04_plm)
-# class(new_data_boom)
-
-
-
-
-
-
-# Assuming you have a new dataset 'new_data_boom' with the same variables as in 'data_81_thru_04_plm'
-# for the time periods you want to predict.
-
-# Create a new data frame with the predictor variables for prediction
-# Replace 'new_data_boom' with the data containing predictor variables for which you want to predict.
-# Ensure that the column names and order match those used in 'fixed_model'.
-# new_data_boom <- data.frame(state = unique(data_81_thru_04_plm$state),  
-#                             year_of_observation = 2005, 
-#                             bac = data_81_thru_04_plm$bac,
-#                             perSe = data_81_thru_04_plm$perSe,
-#                             sbprim = data_81_thru_04_plm$sbprim,
-#                             sbsecon = data_81_thru_04_plm$sbsecon,
-#                             sl70plus = data_81_thru_04_plm$sl70plus,
-#                             gdl = data_81_thru_04_plm$gdl,
-#                             perc14_24 = data_81_thru_04_plm$perc14_24,
-#                             unem = data_81_thru_04_plm$unem,
-#                             vehicmilespc = covid_boom_mi / data_81_thru_04_plm$statepop)
-
-# Create a pdata.frame with the appropriate panel structure
-# Replace 'state' with the name of the column that contains the panel identifiers in 'new_data_boom'.
-# new_data_boom_plm <- pdata.frame(new_data_boom, index = c("state", "year_of_observation"))
-
-# Now you can use 'new_data_boom_plm' to predict using 'fixed_model'
-# predicted_values <- predict(fixed_model, newdata = new_data_boom_plm)
-# 
-# 
-# 
-# 
-# 
-# 
-# responses <- data.frame(pmodel.response(fixed_model))
-
-
+covid_boom_tot <- max(comparison_data$total_log_change)
+print(covid_boom_tot)
 
 ```
 
-```{r}
-# DELETE this chunk
-class(data_plm$year_of_observation)
+```{r estimates}
+log_miles_pc_coef <- fixed_model$coefficients[33] %>% unname()
 
-class(new_data_boom$year_of_observation)
+log_miles_pc_sd <- sqrt(fixed_model$vcov[33,33])
+z <- qnorm(.975)
+
+lower_bust <- (log_miles_pc_coef - z*log_miles_pc_sd) * covid_bust_tot
+est_bust <- log_miles_pc_coef * covid_bust_tot
+upper_bust <- (log_miles_pc_coef + z*log_miles_pc_sd) * covid_bust_tot
+
+lower_boom <- (log_miles_pc_coef - z*log_miles_pc_sd) * covid_boom_tot
+est_boom <- log_miles_pc_coef * covid_boom_tot
+upper_boom <- (log_miles_pc_coef + z*log_miles_pc_sd) * covid_boom_tot
+
+round_digits <-4
+
+forecast_ci <- data.frame(
+  scenario= c("Boom", "Bust"),
+  month = c(covid_boom_date, covid_bust_date),
+  lower = c(round(lower_boom, round_digits), round(lower_bust, round_digits)),
+  estimate = c(round(est_boom, round_digits), round(est_bust, round_digits)),
+  upper = c(round(upper_boom, round_digits), round(upper_bust, round_digits))
+)
+
+forecast_ci
+
 ```
-
-
 
 # (5 points) Evaluate Error 
 

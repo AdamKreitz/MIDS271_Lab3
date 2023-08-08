@@ -11,6 +11,7 @@ library(plm)
 library(readr)
 library(lubridate)
 library(stargazer)
+library(knitr)
 ```
 
 
@@ -27,9 +28,8 @@ Specifically, this data set contains data for the 48 continental U.S. states fro
 ```{r load data, echo = TRUE}
 load(file="../data/driving.RData")
 
-## please comment these calls in your work 
-# glimpse(data)
-#desc
+states_list <- c("Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "District of Columbia", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming")
+
 ```
 
 
@@ -51,6 +51,7 @@ data$speed_limit[data$sl65 >= 0.5] <- 65
 data$speed_limit[data$sl70 >= 0.5] <- 70
 data$speed_limit[data$sl75 >= 0.5] <- 75
 data$speed_limit[data$slnone >= 0.5] <- NA  # DEL make this arbitrarily high?
+data$speed_limit <- factor(data$speed_limit)
 
 # Drop the unnecessary speed limit columns
 data <- subset(data, select = -c(sl55, sl65, sl70, sl75, slnone))
@@ -68,6 +69,7 @@ data$state <- factor(data$state)
 data$bac <- 0
 data$bac[data$bac08>=0.5] <- .08
 data$bac[data$bac10>=0.5] <- .1
+data$bac <- factor(data$bac)
 
 data$zeroTolerance <- 0
 data$zeroTolerance[data$zerotol>=0.5] <- 1
@@ -80,6 +82,8 @@ data$minAge[data$minage<19.5] <- 18
 data$perSe <- 0
 data$perSe[data$perse>=0.5] = 1
 data$perSe[data$perse<0.5] = 0
+
+data$state_str <- states_list[as.numeric(data$state)]
 
 # Drop the unnecessary columns
 data <- subset(data, select = -c(bac08, bac10, zerotol, minage, perse))
@@ -109,13 +113,105 @@ data$log_vehicmilespc = log(data$vehicmilespc)
 
 As with every EDA this semester, the goal of this EDA is not to document your own process of discovery -- save that for an exploration notebook -- but instead it is to bring a reader that is new to the data to a full understanding of the important features of your data as quickly as possible. In order to do this, your EDA should include a detailed, orderly narrative description of what you want your reader to know. Do not include any output -- tables, plots, or statistics -- that you do not intend to write about.
 
-```{r}
-# DELETE this chunk
+```{r density plots}
+data %>%
+    ggplot(aes(x = vehicmilespc)) +
+    geom_density() +
+    labs(
+        title = "Density plot of vehicle miles per capita",
+        x = "Vehicle miles per capita",
+        y = "Density"
+    )
 
-# Missing 2, 9, 12 -- 48 states
-table(data$state)
+data %>%
+    ggplot(aes(x = log(vehicmilespc))) +
+    geom_density() +
+    labs(
+        title = "Density plot of log vehicle miles per capita",
+        x = "Log vehicle miles per capita",
+        y = "Density"
+    )
+
+data %>%
+    ggplot(aes(x = unem)) +
+    geom_density() +
+    labs(
+        title = "Density plot of unemployment rate",
+        x = "Unemployment rate",
+        y = "Density"
+    )
+
+data %>%
+    ggplot(aes(x = log(unem))) +
+    geom_density() +
+    labs(
+        title = "Density plot of log unemployment rate",
+        x = "Log unemployment rate",
+        y = "Density"
+    )
 ```
 
+```{r average year plot}
+avg_total_fatalities_rate <- data %>%
+    group_by(year_of_observation) %>%
+    summarise(avg_total_fatalities_rate = mean(total_fatality_rate))
+
+# Plot the average of 'total_fatalities_rate' in each year
+avg_total_fatalities_rate %>%
+    ggplot(aes(x = year_of_observation, y = avg_total_fatalities_rate, group = 1)) +
+    geom_line() +
+    geom_point() +
+    labs(
+        title = "Average total fatality rate each year",
+        x = "Year",
+        y = "Average of total fatality rate"
+    )
+```
+
+```{r table of total_fatalities_rate}
+avg_total_fatalities_rate %>%
+    mutate(avg_total_fatalities_rate = round(avg_total_fatalities_rate, 2)) %>%
+    kable(
+        caption = "Average total fatality rate each year",
+        col.names = c("Year", "Average of total fatality rate")
+    )
+```
+
+```{r box plot of total fatality rate by speed limit}
+data %>%
+    ggplot(aes(x = speed_limit, y = total_fatality_rate)) +
+    geom_boxplot() +
+    labs(
+        title = "Boxplot of total fatality rate by speed limit",
+        x = "Speed limit",
+        y = "Total fatality rate"
+    )
+```
+
+```{r total fatality rate per state}
+data %>%
+    group_by(state, state_str) %>%
+    summarise(total_fatality_rate = sum(total_fatality_rate)) %>%
+    ggplot(aes(x = state_str, y = total_fatality_rate)) +
+    geom_col() +
+    labs(
+        title = "Total fatality rate per state",
+        x = "State",
+        y = "Total fatality rate"
+    ) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+```{r boxplot of total fatality rate by bac}
+data %>%
+    ggplot(aes(x = bac, y = total_fatality_rate)) +
+    geom_boxplot() +
+    labs(
+        title = "Boxplot of total fatality rate by BAC",
+        x = "BAC",
+        y = "Total fatality rate"
+    )
+```
 
 # (15 points) Preliminary Model
 

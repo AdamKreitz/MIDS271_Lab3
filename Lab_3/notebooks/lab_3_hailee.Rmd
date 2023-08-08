@@ -362,3 +362,10 @@ forecast_ci
 # (5 points) Evaluate Error 
 
 If there were serial correlation or heteroskedasticity in the idiosyncratic errors of the model, what would be the consequences on the estimators and their standard errors? Is there any serial correlation or heteroskedasticity? 
+
+```{r}
+pcdtest(fixed_model, test = "lm")
+pbgtest(fixed_model)
+pdwtest(fixed_model)
+```
+

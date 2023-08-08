@@ -9,7 +9,7 @@ fontsize: 11pt
 geometry: margin=1in
 ---
 
-```{r load packages, echo=T, message=FALSE}
+```{r load packages, echo=F, warning=F, message=F}
 library(tidyverse)
 library(plm)
 library(readr)
@@ -28,7 +28,7 @@ In this lab, we are asking you to answer the following **causal** question:
 > **"Do changes in traffic laws affect traffic fatalities?"**  
 
 
-```{r load data, echo = TRUE}
+```{r load data, echo=F, warning=F}
 load(file="/home/rstudio/workspace/mnt/271/labs/MIDS271_Lab3/Lab_3/data/driving.RData")
 ```
 
@@ -39,7 +39,7 @@ For the analysis, we needed to perform data cleaning and a few variable transfor
 
 During the transformation process, we made a few assumptions. We kept the speed limit that was used for the majority of a given year. For example, if the speed limit was 55 for 45% of the year and 65 for 55% of the year, we used 65. In cases of ties, the higher speed limit was used. We did this instead of a weighted metric because we're ultimately looking to assess policy changes, and there's not much practicality in estimating a coefficient for the speed limit of, say, 62 mph. Similar logic was applied to BAC, zero tolerance, minimum age, and per se variables. We also decided to use the year variable as the d# variables were not giving us additional information.
     
-```{r build and describe data, echo=T}
+```{r build and describe data, echo=F, warning=F}
 # Create states list
 states_list <- c("Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "District of Columbia", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming")
 
@@ -111,14 +111,13 @@ The original data has 1,200 observations and 56 columns. Each of these observati
 
 Our target variable, `total_fatality_rate`, is defined as the number of fatalities per 100,000 residents. On inspection, the fatality rate shows some left skew (see qq plot below), so to remedy this, we use the log of the rate , `log_total_fatalities_rate`, for each stage of modeling. The same was done for the `unemployment` and `vehicle miles per capita variables` (see density plots below). The dataset is a time-series that ranges from 1980-2004, tracking traffic fatality data, as well as features such as laws around BAC and speed limits. The dataset contains information for 48 states. Each of the columns represents a different variable, whereas each row represents state data from a specific year (with the year being the index.) 
 
-```{r qq plot}
+```{r qq plot, echo=F, warning=F}
 qqnorm(data$total_fatality_rate, main = "Total Fatality Rate Normality Check")
-
 qqnorm(data$log_fatility_rate,  main = "Log Total Fatality Rate Normality Check")
 ```
 
 
-```{r density plots}
+```{r density plots, echo=F, warning=F}
 vehicle_density_plot <- data %>%
     ggplot(aes(x = vehicmilespc)) +
     geom_density() +
@@ -163,7 +162,7 @@ The data is collected through a survey. This would be similar to census data, as
 
 As can be seen in the plot below, the average total fatalities decreases over the years with a bump up in 1986 and dropping back down after 1988.
 
-```{r average year plot}
+```{r average year plot, echo=F, warning=F}
 avg_total_fatalities_rate <- data %>%
     group_by(year_of_observation) %>%
     summarise(avg_total_fatalities_rate = mean(total_fatality_rate))
@@ -181,7 +180,7 @@ avg_total_fatalities_rate %>%
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 ```
 
-```{r average year table}
+```{r average year table, echo=F, warning=F}
 avg_total_fatalities_rate %>%
     mutate(avg_total_fatalities_rate = round(avg_total_fatalities_rate, 2)) %>%
     kable(
@@ -192,7 +191,7 @@ avg_total_fatalities_rate %>%
 
 Looking at a boxplot of the total fatality rate by speed limit we can see that there is a larger distribution of fatalities at 55mph. It is more common to see areas with a speed limit with 55mph so there will be a larger spread. What is interesting is the tighter and slightly higher distribution of the total fatality rate at 75mph. This shows that at higher speeds the total fatality rate could also be higher. The NA speed limits in this plot could range from any other speed limit that is not 55 to 75, areas without a posted speed limit, or incomplete data.
 
-```{r box plot of total fatality rate by speed limit}
+```{r box plot of total fatality rate by speed limit, echo=F, warning=F}
 data %>%
     ggplot(aes(x = speed_limit, y = total_fatality_rate)) +
     geom_boxplot() +
@@ -205,7 +204,7 @@ data %>%
 
 The bar plot below shows us the total fatality rate by state. What is interesting is how some states with dense traffic have a low total fatality rate compared to states with less traffic. Take California and Wyoming for example, California has busy and congested cities with drivers compared to Wyoming that is spread out and less congested.
 
-```{r total fatality rate per state}
+```{r total fatality rate per state, echo=F, warning=F}
 data %>%
     group_by(state, state_str) %>%
     summarise(total_fatality_rate = sum(total_fatality_rate)) %>%
@@ -222,7 +221,7 @@ data %>%
 
 The figure below is a boxplot of the total fatality rate by BAC. it is clear that there is a slightly higher distribution of the total fatality rate in people that had a BAC of 0.1 compared to 0.8. Although, 0 (i.e. NA) is higher than both other BACs. NA could contain people that had a BAC higher than 0.1 or were not driving under the influence to incite the need for a BAC test.
 
-```{r boxplot of total fatality rate by bac}
+```{r boxplot of total fatality rate by bac, echo=F, warning=F}
 data %>%
     ggplot(aes(x = bac, y = total_fatality_rate)) +
     geom_boxplot() +
@@ -270,7 +269,7 @@ In our dataframe, we defined the blood alcohol as the level that was prevalent f
 The per se law coefficient is also negative, but statistically insignificant. Primary seatbelt laws are positive, which is counterintuitive, but also statistically insignificant. 
 
 
-```{r expanded lm effects, echo=FALSE}
+```{r expanded lm effects, echo=F, warning=F}
 # Calculate the effect of BAC 0.08
 (1 - exp(coefficients(exp_lm_model)["bac0.08"])) * 100
 
@@ -327,7 +326,7 @@ The assumptions for the fixed effects model are:
 The assumptions of the linear model and fixed effects model are very similar. Because we're looking at panel data, we know the observations aren't i.i.d. in the linear assumption sense. A state observation from one year is not independent from an observation for the same state in the following year. However, we could argue that states are independent from other states, in which case the i.i.d. assumption holds well enough for fixed effects.
 
 
-```{r fe effects, echo=FALSE}
+```{r fe effects, echo=F, warning=F}
 # Calculate the effect of per se
 (1 - exp(coefficients(fixed_model)["perSe"])) * 100
 
@@ -338,7 +337,7 @@ The assumptions of the linear model and fixed effects model are very similar. Be
 We turn to the heatmap below to check whether there is multicollinearity. There are no numeric variables that are dangerously close to 1 or -1.
 
 
-```{r check multicollinearity}
+```{r check multicollinearity, echo=F, warning=F}
 # Calculate the correlation matrix
 cor_matrix <- cor(data[, c("perSe", "sbprim", "sbsecon", "sl70plus", 
                            "gdl", "perc14_24", "log_unem", "log_vehicmilespc")])
@@ -351,7 +350,7 @@ We will test for serial correlation and homoscedasticity in the final section of
 
 As has already been noted, pooled OLS ignores the structure of the panel data and the possibility of a fixed effect. So, the fixed effect model likely has a more reliable result. This is especially true since there is likely a state-fixed effect, which we'll discuss more in the next section. To be certain, we run a pFtest(), which shows a highly significant p-value, indicating we should use the fixed effects model.
 
-```{r pftest}
+```{r pftest, echo=F, warning=F}
 pFtest(fixed_model, exp_lm_model)
 ```
 
@@ -367,7 +366,7 @@ We cannot be sure that the unobserved individual effect is independent of the ex
 To be sure, we conduct a Hausman test. The p-value in the results is very small, so we reject the null hypothesis that random effects are appropriate. In other words, we can stick with the fixed effects model.
 
 
-```{r random effects model, echo=FALSE, message=FALSE}
+```{r random effects model, echo=F, warning=F}
 # Fit random effects model
 random_model <- plm(log_fatility_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
                       sl70plus + gdl + perc14_24 + log_unem + log_vehicmilespc, 
@@ -377,7 +376,7 @@ random_model <- plm(log_fatility_rate ~ year_of_observation + bac + perSe + sbpr
 # summary(random_model)
 ```
 
-```{r hausman test}
+```{r hausman test, echo=F, warning=F}
 # Test for random effects
 phtest(fixed_model, random_model)
 ```
@@ -386,22 +385,17 @@ phtest(fixed_model, random_model)
 
 For this section, we found data for the amount of vehicle miles driven in the U.S. from January 2018 up to May 2023. This data was retrieved from the Federal Reserve Bank of St. Louis (https://fred.stlouisfed.org/series/TRFVOLUSM227NFWA), who compiled monthly millions of vehicle miles driven using data from the U.S. Federal Highway Administration (https://highways.dot.gov/). To convert to per capita data, we also retrieved US population data from the same source (https://fred.stlouisfed.org/series/POPTHM). We define the U.S. pandemic era as March 2020 through May 2023 (basically up until the data ends).
 
-```{r read monthly miles driven data, message=FALSE}
+```{r read monthly miles driven data, echo=F, warning=F, message=F}
 monthly_miles <- read_csv("../data/monthly_miles_driven.csv")
-
-# Show first few rows
-head(monthly_miles)
 ```
 
-```{r get population, message=FALSE}
+```{r get population, echo=F, warning=F, message=F}
 monthly_population <- read_csv("../data/POPTHM.csv")
-
-# Show first few rows
-head(monthly_population)
 ```
+
 When comparing 2018 to COVID-era monthly data, the largest decrease in per capita driving was in April 2020 with -39.68%. The largest increase in per capita driving was in September 2022 with +0.69%.
 
-```{r pandemic comparison setup, echo=FALSE}
+```{r pandemic comparison setup, echo=F, warning=F}
 # Reformat data for comparisons
 monthly_miles$date <- lubridate::mdy(monthly_miles$date)
 monthly_miles$year <- lubridate::year(monthly_miles$date)
@@ -434,7 +428,7 @@ comparison_data$perc_change <- (comparison_data$millions_of_miles_pand - compari
 ```
 
 
-```{r pandemic comparison results}
+```{r pandemic comparison results, echo=F, warning=F}
 # What month demonstrated the largest decrease in driving?
 covid_bust_date <- comparison_data$date[which.min(comparison_data$perc_change)]
 print(covid_bust_date)
@@ -456,7 +450,7 @@ print(covid_boom_tot)
 
 For these two months, we can estimate the percentage change in total fatality rate that we'd expect to see by utilizing the coefficient for miles driven per capita from our fixed model. Taking advantage of the log transformations in our variables, we estimate a 34% decrease in traffic fatalities for April 2020, and a modest 0.5% increase in fatalities in September 2022.
 
-```{r estimates setup, echo=FALSE}
+```{r estimates setup, echo=F, warning=F}
 log_miles_pc_coef <- fixed_model$coefficients[34] %>% unname()
 
 log_miles_pc_sd <- sqrt(fixed_model$vcov[34,34])
@@ -482,7 +476,7 @@ forecast_ci <- data.frame(
 
 ```
 
-```{r estimates results}
+```{r estimates results, echo=F, warning=F}
 forecast_ci
 ```
 
@@ -498,16 +492,16 @@ Hypothesis tests rely on valid standard errors. If standard errors are incorrect
 
 In this section, we test for serial correlation and heteroskedasticity. 
 
-```{r serial tests}
+```{r serial tests, echo=F, warning=F}
 pbgtest(fixed_model)
 pdwtest(fixed_model)
 ```
 
 To test for serial correlation, we look at two tests: The Durbin-Watson test and the Breusch-Pagan test.
 
-When using the Durbin-Watson test, we get a p-value of .496, which means we fail to reject the null hypothesis that there is no serial correlation. However, the Durbin-Watson test is only limited to singular lag, which makes it a less robust test than the Breusch-Godfrey test. In order to be confident in our assessment, we used the Breusch-Godfrey test, which resulted in a p-value significantly less than .05, which means that we reject the null hypothesis and conclude that there is serial correlation.
+The p-value for the Durbin-Watson test was significantly less than 0.05, which means we reject the null hypothesis and conclude that there is serial correlation. However, the Durbin-Watson test is only limited to singular lag, which makes it a less robust test than the Breusch-Godfrey test. In order to be confident in our assessment, we used the Breusch-Godfrey test, which resulted in a p-value significantly less than .05, which means that we reject the null hypothesis and conclude that there is serial correlation.
 
-```{r heteroskedasticity test}
+```{r heteroskedasticity test, echo=F, warning=F}
 pcdtest(fixed_model, test = "lm")
 ```
 

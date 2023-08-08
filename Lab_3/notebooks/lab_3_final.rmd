@@ -351,19 +351,16 @@ We will test for serial correlation and homoscedasticity in the final section of
 
 As has already been noted, pooled OLS ignores the structure of the panel data and the possibility of a fixed effect. So, the fixed effect model likely has a more reliable result. This is especially true since there is likely a state-fixed effect, which we'll discuss more in the next section. To be certain, we run a pFtest(), which shows a highly significant p-value, indicating we should use the fixed effects model.
 
-
 ```{r pftest}
 pFtest(fixed_model, exp_lm_model)
 ```
 
-
-
-
 # (10 points) Consider a Random Effects Model 
 
 The assumptions of a random effects model are:
-* All of the fixed effect assumptions
-* The unobserved individual effect is independent of all explanatory variables
+
++ All of the fixed effect assumptions
++ The unobserved individual effect is independent of all explanatory variables
 
 We cannot be sure that the unobserved individual effect is independent of the explanatory variables. For example, it's certainly possible that unobserved attitudes about drinking and driving at the individual (i.e. state) level are tied to state-level policies about the legally accepted BAC. Because these assumptions aren't met with this data, a random effects model is not likely to be consistent, may give biased estimates, and may return incorrect standard errors. 
 

@@ -112,8 +112,11 @@ The original data has 1,200 observations and 56 columns. Each of these observati
 Our target variable, `total_fatality_rate`, is defined as the number of fatalities per 100,000 residents. On inspection, the fatality rate shows some left skew (see qq plot below), so to remedy this, we use the log of the rate , `log_total_fatalities_rate`, for each stage of modeling. The same was done for the `unemployment` and `vehicle miles per capita variables` (see density plots below). The dataset is a time-series that ranges from 1980-2004, tracking traffic fatality data, as well as features such as laws around BAC and speed limits. The dataset contains information for 48 states. Each of the columns represents a different variable, whereas each row represents state data from a specific year (with the year being the index.) 
 
 ```{r qq plot, echo=F, warning=F}
+par(mfrow=c(1,2))
 qqnorm(data$total_fatality_rate, main = "Total Fatality Rate Normality Check")
+qqline(data$total_fatality_rate)
 qqnorm(data$log_fatility_rate,  main = "Log Total Fatality Rate Normality Check")
+qqline(data$log_fatility_rate)
 ```
 
 
@@ -162,7 +165,7 @@ The data is collected through a survey. This would be similar to census data, as
 
 As can be seen in the plot below, the average total fatalities decreases over the years with a bump up in 1986 and dropping back down after 1988.
 
-```{r average year plot, echo=F, warning=F}
+```{r average year plot, echo=F, warning=F, message=F, fig.height=3}
 avg_total_fatalities_rate <- data %>%
     group_by(year_of_observation) %>%
     summarise(avg_total_fatalities_rate = mean(total_fatality_rate))
@@ -191,10 +194,11 @@ avg_total_fatalities_rate %>%
 
 Looking at a boxplot of the total fatality rate by speed limit we can see that there is a larger distribution of fatalities at 55mph. It is more common to see areas with a speed limit with 55mph so there will be a larger spread. What is interesting is the tighter and slightly higher distribution of the total fatality rate at 75mph. This shows that at higher speeds the total fatality rate could also be higher. The NA speed limits in this plot could range from any other speed limit that is not 55 to 75, areas without a posted speed limit, or incomplete data.
 
-```{r box plot of total fatality rate by speed limit, echo=F, warning=F}
+```{r box plot of total fatality rate by speed limit, echo=F, warning=F, fig.height=2.4}
 data %>%
     ggplot(aes(x = speed_limit, y = total_fatality_rate)) +
     geom_boxplot() +
+    coord_flip() +
     labs(
         title = "Boxplot of total fatality rate by speed limit",
         x = "Speed limit",
@@ -204,7 +208,7 @@ data %>%
 
 The bar plot below shows us the total fatality rate by state. What is interesting is how some states with dense traffic have a low total fatality rate compared to states with less traffic. Take California and Wyoming for example, California has busy and congested cities with drivers compared to Wyoming that is spread out and less congested.
 
-```{r total fatality rate per state, echo=F, warning=F}
+```{r total fatality rate per state, echo=F, warning=F, message=F}
 data %>%
     group_by(state, state_str) %>%
     summarise(total_fatality_rate = sum(total_fatality_rate)) %>%
@@ -221,10 +225,11 @@ data %>%
 
 The figure below is a boxplot of the total fatality rate by BAC. it is clear that there is a slightly higher distribution of the total fatality rate in people that had a BAC of 0.1 compared to 0.8. Although, 0 (i.e. NA) is higher than both other BACs. NA could contain people that had a BAC higher than 0.1 or were not driving under the influence to incite the need for a BAC test.
 
-```{r boxplot of total fatality rate by bac, echo=F, warning=F}
+```{r boxplot of total fatality rate by bac, echo=F, warning=F, fig.height=3}
 data %>%
     ggplot(aes(x = bac, y = total_fatality_rate)) +
     geom_boxplot() +
+    coord_flip() +
     labs(
         title = "Boxplot of total fatality rate by BAC",
         x = "BAC",

@@ -1,8 +1,10 @@
 ---
-title: 'Lab 3: Panel Models'
+title: "W271 Group Lab 3"
 subtitle: 'US Traffic Fatalities: 1980 - 2004'
-output: 
-  bookdown::pdf_document2: default
+author: "Adam Kreitzman, Hailee Schuele, Lee Perkins, Paul Cooper"
+output: pdf_document
+fontsize: 11pt
+geometry: margin=1in
 ---
 
 ```{r load packages, echo=FALSE, message=FALSE}
@@ -22,27 +24,22 @@ In this lab, we are asking you to answer the following **causal** question:
 
 > **"Do changes in traffic laws affect traffic fatalities?"**  
 
-To answer this question, please complete the tasks specified below using the data provided in `data/driving.Rdata`. This data includes 25 years of data that cover changes in various state drunk driving, seat belt, and speed limit laws. 
-
-Specifically, this data set contains data for the 48 continental U.S. states from 1980 through 2004. Various driving laws are indicated in the data set, such as the alcohol level at which drivers are considered legally intoxicated. There are also indicators for “per se” laws—where licenses can be revoked without a trial—and seat belt laws. A few economics and demographic variables are also included. The description of the each of the variables in the dataset is also provided in the dataset. 
 
 ```{r load data, echo = TRUE}
 load(file="../data/driving.RData")
-
-states_list <- c("Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "District of Columbia", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming")
-
 ```
 
 
 # (30 points, total) Build and Describe the Data 
 
-1. (5 points) Load the data and produce useful features. Specifically: 
-    - Produce a new variable, called `speed_limit` that re-encodes the data that is in `sl55`, `sl65`, `sl70`, `sl75`, and `slnone`; 
-    - Produce a new variable, called `year_of_observation` that re-encodes the data that is in `d80`, `d81`, ... , `d04`. 
-    - Produce a new variable for each of the other variables that are one-hot encoded (i.e. `bac*` variable series). 
-    - Rename these variables to sensible names that are legible to a reader of your analysis. For example, the dependent variable as provided is called, `totfatrte`. Pick something more sensible, like, `total_fatalities_rate`. There are few enough of these variables to change, that you should change them for all the variables in the data. (You will thank yourself later.)
+For the analysis, we needed to perform data cleaning and a few variable transformations. The first few rows of the final dataframe can be seen below.
+
+During the transformation process, we made a few assumptions. We kept the speed limit that was used for the majority of a given year. For example, if the speed limit was 55 for 45% of the year and 65 for 55% of the year, we used 65. In cases of ties, the higher speed limit was used. We did this instead of a weighted metric because we’re ultimately looking to assess policy changes, and there’s not much practicality in estimating a coefficient for the speed limit of, say, 62 mph. Similar logic was applied to BAC, zero tolerance, minimum age, and per se variables. We also decided to use the year variable as the d# variables were not giving us additional information.
     
-```{r build and describe data}
+```{r build and describe data, echo=FALSE}
+# Create states list
+states_list <- c("Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "District of Columbia", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming")
+
 # Create a new column 'speed_limit' and initialize it with 0
 data$speed_limit <- 0
 
@@ -51,7 +48,7 @@ data$speed_limit[data$sl55 >= 0.5] <- 55
 data$speed_limit[data$sl65 >= 0.5] <- 65
 data$speed_limit[data$sl70 >= 0.5] <- 70
 data$speed_limit[data$sl75 >= 0.5] <- 75
-data$speed_limit[data$slnone >= 0.5] <- NA  # DEL make this arbitrarily high?
+data$speed_limit[data$slnone >= 0.5] <- NA  
 data$speed_limit <- factor(data$speed_limit)
 
 # Drop the unnecessary speed limit columns
@@ -106,13 +103,23 @@ data$log_fatility_rate = log(data$total_fatality_rate)
 data$log_unem = log(data$unem)
 data$log_vehicmilespc = log(data$vehicmilespc)
 ```
-2. (5 points) Provide a description of the basic structure of the dataset. What is this data? How, where, and when is it collected? Is the data generated through a survey or some other method? Is the data that is presented a sample from the population, or is it a *census* that represents the entire population? Minimally, this should include:
-    - How is the our dependent variable of interest `total_fatalities_rate` defined? 
-3. (20 points) Conduct a very thorough EDA, which should include both graphical and tabular techniques, on the dataset, including both the dependent variable `total_fatalities_rate` and the potential explanatory variables. Minimally, this should include: 
-    - How is the our dependent variable of interest `total_fatalities_rate` defined? 
-    - What is the average of `total_fatalities_rate` in each of the years in the time period covered in this dataset? 
 
-As with every EDA this semester, the goal of this EDA is not to document your own process of discovery -- save that for an exploration notebook -- but instead it is to bring a reader that is new to the data to a full understanding of the important features of your data as quickly as possible. In order to do this, your EDA should include a detailed, orderly narrative description of what you want your reader to know. Do not include any output -- tables, plots, or statistics -- that you do not intend to write about.
+```{r head data}
+# Show first few rows
+head(data)
+```
+
+
+The original data has 1,200 observations and 56 columns. Each of these observations represent state-year information. 
+
+Our target variable, `total_fatality_rate`, is defined as the number of fatalities per 100,000 residents. On inspection, the fatality rate shows some left skew (see qq plot below), so to remedy this, we use the log of the rate , `log_total_fatalities_rate`, for each stage of modeling. The same was done for the `unemployment` and `vehicle miles per capita variables` (see density plots below). The dataset is a time-series that ranges from 1980-2004, tracking traffic fatality data, as well as features such as laws around BAC and speed limits. The dataset contains information for 48 states. Each of the columns represents a different variable, whereas each row represents state data from a specific year (with the year being the index.) 
+
+```{r qq plot}
+qqnorm(data$total_fatality_rate, main = "Total Fatality Rate Normality Check")
+
+qqnorm(data$log_fatility_rate,  main = "Log Total Fatality Rate Normality Check")
+```
+
 
 ```{r density plots}
 data %>%
@@ -152,6 +159,10 @@ data %>%
     )
 ```
 
+The data is collected through a survey. This would be similar to census data, as traffic fatalities are carefully recorded. Features such as laws and population are also carefully recorded.
+
+As can be seen in the plot below, the average total fatalities decreases over the years with a bump up in 1986 and dropping back down after 1988.
+
 ```{r average year plot}
 avg_total_fatalities_rate <- data %>%
     group_by(year_of_observation) %>%
@@ -168,15 +179,7 @@ avg_total_fatalities_rate %>%
         y = "Average of total fatality rate"
     )
 ```
-
-```{r table of total_fatalities_rate}
-avg_total_fatalities_rate %>%
-    mutate(avg_total_fatalities_rate = round(avg_total_fatalities_rate, 2)) %>%
-    knitr::kable(
-        caption = "Average total fatality rate each year",
-        col.names = c("Year", "Average of total fatality rate")
-    )
-```
+Looking at a boxplot of the total fatality rate by speed limit we can see that there is a larger distribution of fatalities at 55mph. It is more common to see areas with a speed limit with 55mph so there will be a larger spread. What is interesting is the tighter and slightly higher distribution of the total fatality rate at 75mph. This shows that at higher speeds the total fatality rate could also be higher. The NA speed limits in this plot could range from any other speed limit that is not 55 to 75, areas without a posted speed limit, or incomplete data.
 
 ```{r box plot of total fatality rate by speed limit}
 data %>%
@@ -188,6 +191,8 @@ data %>%
         y = "Total fatality rate"
     )
 ```
+
+The bar plot below shows us the total fatality rate by state. What is interesting is how some states with dense traffic have a low total fatality rate compared to states with less traffic. Take California and Wyoming for example, California has busy and congested cities with drivers compared to Wyoming that is spread out and less congested.
 
 ```{r total fatality rate per state}
 data %>%
@@ -203,6 +208,9 @@ data %>%
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 ```
 
+
+The figure below is a boxplot of the total fatality rate by BAC. it is clear that there is a slightly higher distribution of the total fatality rate in people that had a BAC of 0.1 compared to 0.8. Although, 0 (i.e. NA) is higher than both other BACs. NA could contain people that had a BAC higher than 0.1 or were not driving under the influence to incite the need for a BAC test.
+
 ```{r boxplot of total fatality rate by bac}
 data %>%
     ggplot(aes(x = bac, y = total_fatality_rate)) +
@@ -214,62 +222,44 @@ data %>%
     )
 ```
 
+
 # (15 points) Preliminary Model
 
-Estimate a linear regression model of *totfatrte* on a set of dummy variables for the years 1981 through 2004 and interpret what you observe. In this section, you should address the following tasks: 
-
-- Why is fitting a linear model a sensible starting place? 
-- What does this model explain, and what do you find in this model? 
-- Did driving become safer over this period? Please provide a detailed explanation.
-- What, if any, are the limitation of this model. In answering this, please consider **at least**: 
-    - Are the parameter estimates reliable, unbiased estimates of the truth? Or, are they biased due to the way that the data is structured?
-    - Are the uncertainty estimate reliable, unbiased estimates of sampling based variability? Or, are they biased due to the way that the data is structured? 
+In this section, we estimate a linear regression model using total fatalities as our outcome variable and the years 1981 - 2004 as our explanatory variables. Fitting a linear model gives us a baseline of the shape of the data before we move to more advanced modeling techniques. 
     
 ```{r linear model}
 # Fit linear model
 lm_model <- lm(log_fatility_rate ~ year_of_observation, data = data)
 
-stargazer(lm_model, title = "Preliminary Model Results", align = TRUE)
-
-# summary(lm_model)
+stargazer(lm_model, style="qje", type="text", title = "Preliminary Model Results", align = TRUE)
 ```
 
+As can be seen in the model, the coefficients of many years show statistically significant effects on the logged fatality rate, with all years having a p-value at least under 0.01 other than 1981. There is a general decrease in the year coefficients as time progresses, indicating that logged total fatalities goes down over time. However, this decline is not completely consistent, indicating some years have atemporal unobserved effect that this initial model is attempting to account for.
 
+While a good place to start, there are a number of limitations to this initial model. For instance, it only takes into account the year as an explanatory variable. Also, pooled OLS ignores the structure of panel data. It only works if there is no unobserved/fixed effect in the individual states, which does not appear to be the case from our EDA. This can lead to omitted variable bias and make our estimates inconsistent. For example, if the explanatory variable(s) are positively correlated with the unobserved effect, we will get an upward bias. 
 
 
 
 # (15 points) Expanded Model 
 
-Expand the **Preliminary Model** by adding variables related to the following concepts: 
-
-- Blood alcohol levels 
-- Per se laws
-- Primary seat belt laws (Note that if a law was enacted sometime within a year the fraction of the year is recorded in place of the zero-one indicator.)
-- Secondary seat belt laws 
-- Speed limits faster than 70 
-- Graduated drivers licenses 
-- Percent of the population between 14 and 24 years old
-- Unemployment rate
-- Vehicle miles driven per capita. 
-
-If it is appropriate, include transformations of these variables. Please carefully explain carefully your rationale, which should be based on your EDA, behind any transformation you made. If no transformation is made, explain why transformation is not needed. 
-
-- How are the blood alcohol variables defined? Interpret the coefficients that you estimate for this concept. 
-- Do *per se laws* have a negative effect on the fatality rate? 
-- Does having a primary seat belt law? 
+In this next section, we add a number of explanatory variables. Many of the variables represent changes in state laws that occurred over the course of the data collection, including blood alcohol limits, seat belt laws, per se DUI laws, and highway speed limits. These variables were transformed into indicator variables, to show whether or not the law was in effect for a given observation.
 
 ```{r expanded linear model}
 # Fit expanded linear model
 exp_lm_model <- lm(log_fatility_rate ~ year_of_observation + bac + perSe + sbprim + sbsecon + 
                      sl70plus + gdl + perc14_24 + log_unem + log_vehicmilespc, data = data)
 
-stargazer(exp_lm_model, title = "Expanded Model Results", align = TRUE)
-
-# summary(exp_lm_model)
+stargazer(exp_lm_model, style="qje", type="text", title = "Expanded Model Results", align = TRUE)
 ```
 
+The model results show that year continues to have a significant effect, but we also get significant effects from bac0.08, speed limit, percent of population between 14 and 24, log unemployment, and log miles driven per capita.
 
-```{r expanded lm effects}
+In our dataframe, we defined the blood alcohol as the level that was prevalent for the majority of the year for the given year-state-level observation. For example, if the BAC was 0.1 for 40% of 1994 in Michigan and 0.08 for 60%, we encoded it to be 0.08. The coefficient for bac0.08 in the expanded linear model is about -0.06. This means that a BAC of 0.08 decreases fatality rate by exp(-0.06) = 0.94, or a decrease of 1 - 0.94 = 5.82%, when compared to no BAC regulation. This estimate is statistically significant. However, bac0.1 is not significant.
+
+The per se law coefficient is also negative, but statistically insignificant. Primary seatbelt laws are positive, which is counterintuitive, but also statistically insignificant. 
+
+
+```{r expanded lm effects, echo=FALSE}
 # Calculate the effect of BAC 0.08
 (1 - exp(coefficients(exp_lm_model)["bac0.08"])) * 100
 
@@ -283,16 +273,7 @@ stargazer(exp_lm_model, title = "Expanded Model Results", align = TRUE)
 
 # (15 points) State-Level Fixed Effects 
 
-Re-estimate the **Expanded Model** using fixed effects at the state level. 
-
-- What do you estimate for coefficients on the blood alcohol variables? How do the coefficients on the blood alcohol variables change, if at all? 
-- What do you estimate for coefficients on per se laws? How do the coefficients on per se laws change, if at all? 
-- What do you estimate for coefficients on primary seat-belt laws? How do the coefficients on primary seatbelt laws change, if at all? 
-
-Which set of estimates do you think is more reliable? Why do you think this? 
-
-- What assumptions are needed in each of these models?  
-- Are these assumptions reasonable in the current context?
+Below, we’ve used the expanded model from the previous section and have added a fixed effect at the state level.
 
 ```{r fixed effects model}
 # Convert data to a plm dataframe
@@ -305,18 +286,46 @@ fixed_model <- plm(log_fatility_rate ~ year_of_observation + bac + perSe + sbpri
                     model = "within", 
                     effect = "individual")
 
-stargazer(fixed_model, title = "Fixed Effects Model Results", align = TRUE)
-
-# summary(fixed_model)
+stargazer(fixed_model, style="qje", type="text", title = "Fixed Effects Model Results", align = TRUE)
 ```
 
-```{r fe effects}
+The coefficient for bac0.08 in this fixed effects model is about -0.02, which is less extreme than in the expanded linear model, but this time is insignificant. The coefficient of the per se variable is -0.06, which is three times as extreme as the linear model, and this time it is significant. This equates to a 5.38% decrease in fatality rate. Unlike in the linear model, primary seatbelt law is statistically significant. It also has a much more practical effect, -0.04, which equates to a 3.97% decrease in fatality rate. 
+
+The assumptions for the linear model are:
+
+- Observations are i.i.d.
+
+- Homoscedasticity 
+
+- Normality
+
+- No multicollinearity 
+
+The assumptions for the fixed effects model are: 
+
+- Individuals are i.i.d.
+
+- No serial correlation in the error term (i.e. expectation = 0)
+
+- No perfect multicollinearity
+
+- Homoscedasticity (i.e. error term has constant variance)
+
+- There is a fixed effect that is correlated with at least one of the explanatory variables
+
+The assumptions of the linear model and fixed effects model are very similar. Because we’re looking at panel data, we know the observations aren’t i.i.d. in the linear assumption sense. A state observation from one year is not independent from an observation for the same state in the following year. However, we could argue that states are independent from other states, in which case the i.i.d. assumption holds well enough for fixed effects.
+
+
+```{r fe effects, echo=FALSE}
 # Calculate the effect of per se
 (1 - exp(coefficients(fixed_model)["perSe"])) * 100
 
 # Calculate the effect of sbprim
 (1 - exp(coefficients(fixed_model)["sbprim"])) * 100
 ```
+
+We turn to the heatmap below to check whether there is multicollinearity. There are no numeric variables that are dangerously close to 1 or -1.
+
 
 ```{r check multicollinearity}
 # Calculate the correlation matrix
@@ -327,6 +336,11 @@ cor_matrix <- cor(data[, c("perSe", "sbprim", "sbsecon", "sl70plus",
 corrplot::corrplot(cor_matrix, method = "color")
 ```
 
+We will test for serial correlation and homoscedasticity in the final section of this report. 
+
+As has already been noted, pooled OLS ignores the structure of the panel data and the possibility of a fixed effect. So, the fixed effect model likely has a more reliable result. This is especially true since there is likely a state-fixed effect, which we’ll discuss more in the next section. To be certain, we run a pFtest(), which shows a highly significant p-value, indicating we should use the fixed effects model.
+
+
 ```{r pftest}
 pFtest(fixed_model, exp_lm_model)
 ```
@@ -336,11 +350,13 @@ pFtest(fixed_model, exp_lm_model)
 
 # (10 points) Consider a Random Effects Model 
 
-Instead of estimating a fixed effects model, should you have estimated a random effects model?
+The assumptions of a random effects model are:
+* All of the fixed effect assumptions
+* The unobserved individual effect is independent of all explanatory variables
 
-- Please state the assumptions of a random effects model, and evaluate whether these assumptions are met in the data. 
-- If the assumptions are, in fact, met in the data, then estimate a random effects model and interpret the coefficients of this model. Comment on how, if at all, the estimates from this model have changed compared to the fixed effects model. 
-- If the assumptions are **not** met, then do not estimate the data. But, also comment on what the consequences would be if you were to *inappropriately* estimate a random effects model. Would your coefficient estimates be biased or not? Would your standard error estimates be biased or not? Or, would there be some other problem that might arise?
+We cannot be sure that the unobserved individual effect is independent of the explanatory variables. For example, it’s certainly possible that unobserved attitudes about drinking and driving at the individual (i.e. state) level are tied to state-level policies about the legally accepted BAC. Because these assumptions aren’t met with this data, a random effects model is not likely to be consistent, may give biased estimates, and may return incorrect standard errors. 
+
+To be sure, we conduct a Hausman test. The p-value in the results is very small, so we reject the null hypothesis that random effects are appropriate. In other words, we can stick with the fixed effects model.
 
 
 ```{r random effects model, echo=FALSE, message=FALSE}
@@ -360,33 +376,24 @@ phtest(fixed_model, random_model)
 
 # (10 points) Model Forecasts 
 
-The COVID-19 pandemic dramatically changed patterns of driving. Find data (and include this data in your analysis, here) that includes some measure of vehicle miles driven in the US. Your data should at least cover the period from January 2018 to as current as possible. With this data, produce the following statements: 
+For this section, we found data for the amount of vehicle miles driven in the U.S. from January 2018 up to May 2023. This data was retrieved from the Federal Reserve Bank of St. Louis (https://fred.stlouisfed.org/series/TRFVOLUSM227NFWA), who compiled monthly millions of vehicle miles driven using data from the U.S. Federal Highway Administration (https://highways.dot.gov/). To convert to per capita data, we also retrieved US population data from the same source (https://fred.stlouisfed.org/series/POPTHM). We define the U.S. pandemic era as March 2020 through May 2023 (basically up until the data ends).
 
-- Comparing monthly miles driven in 2018 to the same months during the pandemic: 
-  - What month demonstrated the largest decrease in driving? How much, in percentage terms, lower was this driving? 
-  - What month demonstrated the largest increase in driving? How much, in percentage terms, higher was this driving? 
-  
-Now, use these changes in driving to make forecasts from your models. 
-
-- Suppose that the number of miles driven per capita, increased by as much as the COVID boom. Using the FE estimates, what would the consequences be on the number of traffic fatalities? Please interpret the estimate.
-- Suppose that the number of miles driven per capita, decreased by as much as the COVID bust. Using the FE estimates, what would the consequences be on the number of traffic fatalities? Please interpret the estimate.
-
-```{r read monthly miles driven data}
+```{r read monthly miles driven data, message=FALSE}
 monthly_miles <- read_csv("../data/monthly_miles_driven.csv")
 
 # Show first few rows
 head(monthly_miles)
 ```
 
-```{r get population}
+```{r get population, message=FALSE}
 monthly_population <- read_csv("../data/POPTHM.csv")
 
 # Show first few rows
 head(monthly_population)
 ```
+When comparing 2018 to COVID-era monthly data, the largest decrease in per capita driving was in April 2020 with -39.68%. The largest increase in per capita driving was in September 2022 with +0.69%.
 
-
-```{r pandemic comparison}
+```{r pandemic comparison setup, echo=FALSE}
 # Reformat data for comparisons
 monthly_miles$date <- lubridate::mdy(monthly_miles$date)
 monthly_miles$year <- lubridate::year(monthly_miles$date)
@@ -416,9 +423,11 @@ comparison_data$total_change <- (comparison_data$millions_of_miles_pand -   comp
 comparison_data$total_log_change <- (log(comparison_data$millions_of_miles_pand) -   log(comparison_data$millions_of_miles_nonpand))
 
 comparison_data$perc_change <- (comparison_data$millions_of_miles_pand - comparison_data$millions_of_miles_nonpand) / comparison_data$millions_of_miles_nonpand * 100
+```
 
 
-# What month demonstrated the largest decrease in driving? How much, in percentage terms, lower was this driving?
+```{r pandemic comparison results}
+# What month demonstrated the largest decrease in driving?
 covid_bust_date <- comparison_data$date[which.min(comparison_data$perc_change)]
 print(covid_bust_date)
 covid_bust_perc <- min(comparison_data$perc_change)
@@ -427,17 +436,19 @@ covid_bust_tot <- min(comparison_data$total_log_change)
 print(covid_bust_tot)
 
 
-#What month demonstrated the largest increase in driving? How much, in percentage terms, higher was this driving?
+#What month demonstrated the largest increase in driving? 
 covid_boom_date <- comparison_data$date[which.max(comparison_data$perc_change)]
 print(covid_boom_date)
 covid_boom_perc <- max(comparison_data$perc_change)
 print(covid_boom_perc)
 covid_boom_tot <- max(comparison_data$total_log_change)
 print(covid_boom_tot)
-
 ```
 
-```{r estimates}
+
+For these two months, we can estimate the percentage change in total fatality rate that we’d expect to see by utilizing the coefficient for miles driven per capita from our fixed model. Taking advantage of the log transformations in our variables, we estimate a 34% decrease in traffic fatalities for April 2020, and a modest 0.5% increase in fatalities in September 2022.
+
+```{r estimates setup, echo=FALSE}
 log_miles_pc_coef <- fixed_model$coefficients[33] %>% unname()
 
 log_miles_pc_sd <- sqrt(fixed_model$vcov[33,33])
@@ -461,17 +472,38 @@ forecast_ci <- data.frame(
   upper = c(round(upper_boom, round_digits), round(upper_bust, round_digits))
 )
 
-forecast_ci
-
 ```
+
+```{r estimates results}
+forecast_ci
+```
+
 
 # (5 points) Evaluate Error 
 
-If there were serial correlation or heteroskedasticity in the idiosyncratic errors of the model, what would be the consequences on the estimators and their standard errors? Is there any serial correlation or heteroskedasticity? 
+If there were serial correlation or heteroskedasticity in the idiosyncratic errors of the model, what would be the consequences on the estimators and their standard errors?
 
-```{r}
-pcdtest(fixed_model, test = "lm")
+When there's no omitted variable bias, even in the presence of serial correlation or heteroskedasticity, the OLS estimators remain unbiased. This means that on average, the OLS estimator will be correct. However, OLS estimators will no longer be the Best Linear Unbiased Estimators, meaning there might be other linear estimators that have smaller variances.
+Heteroskedasticity: When heteroskedasticity is present, the usual OLS standard errors are generally inconsistent. This can lead to incorrect inference, such as invalid t-statistics and confidence intervals.
+Serial Correlation: In the presence of serial correlation in a time series context, the standard OLS standard errors are not valid. This can again lead to misleading t-statistics and confidence intervals.
+Hypothesis tests rely on valid standard errors. If standard errors are incorrect due to serial correlation or heteroskedasticity, these test statistics can be misleading. This can lead to incorrect rejections or failures to reject the null hypothesis.
+
+In this section, we test for serial correlation and heteroskedasticity. 
+
+```{r serial tests}
 pbgtest(fixed_model)
 pdwtest(fixed_model)
 ```
+
+To test for serial correlation, we look at two tests: The Durbin-Watson test and the Breusch-Pagan test.
+
+When using the Durbin-Watson test, we get a p-value of .496, which means we fail to reject the null hypothesis that there is no serial correlation. However, the Durbin-Watson test is only limited to singular lag, which makes it a less robust test than the Breusch-Godfrey test. In order to be confident in our assessment, we used the Breusch-Godfrey test, which resulted in a p-value significantly less than .05, which means that we reject the null hypothesis and conclude that there is serial correlation.
+
+```{r heteroskedasticity test}
+pcdtest(fixed_model, test = "lm")
+```
+
+
+To test for heteroskedasticity, we employed the Breusch-Pagan test. Our p-value was well below .05, which means that we reject the null hypothesis and conclude that there is heteroskedasticity.
+
 
